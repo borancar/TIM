@@ -53,32 +53,32 @@ _long_mul_div proc near
 	mov ax, [bp+0ch]
 	mov dx, [bp+0eh]
 	or dx, dx
-	jns L2a069
+	jns lmd_a_positive
 	neg ax
 	adc dx, 0
 	neg dx
 	mov [bp+0ch], ax
 	mov [bp+0eh], dx
-L2a069:
+lmd_a_positive:
 	mov bx, [bp+10h]
 	mov cx, [bp+12h]
 	or cx, cx
-	jns L2a080
+	jns lmd_b_positive
 	neg bx
 	adc cx, 0
 	neg cx
 	mov [bp+10h], bx
 	mov [bp+12h], cx
-L2a080:
+lmd_b_positive:
 	mov si, dx
 	xor si, cx
 	mov [bp-0ah], si
 	cmp ax, bx
-	jne L2a0c0
+	jne lmd_divide
 	cmp cx, dx
-	jne L2a0c0
+	jne lmd_divide
 	or si, si
-	je L2a0b9
+	je lmd_return
 	mov ax, [bp+4]
 	mov dx, [bp+6]
 	neg ax
@@ -93,21 +93,21 @@ L2a080:
 	neg dx
 	mov [bp+8], ax
 	mov [bp+0ah], dx
-L2a0b9:
+lmd_return:
 	pop di
 	pop si
 	add sp, 10h
 	pop bp
 	ret
-L2a0c0:
+lmd_divide:
 	or dx, dx
-	jne L2a0c9
+	jne lmd_normalise_bytes
 	xchg dx, ax
 	xchg bx, cx
-	jmp short L2a0e9
-L2a0c9:
+	jmp short lmd_reciprocal
+lmd_normalise_bytes:
 	or dh, dh
-	jne L2a0e7
+	jne lmd_normalised
 	mov ch, cl
 	mov cl, bh
 	mov bh, bl
@@ -115,20 +115,20 @@ L2a0c9:
 	mov dl, ah
 	mov ah, al
 	or dx, dx
-	jmp short L2a0e7
-L2a0dd:
+	jmp short lmd_normalised
+lmd_normalise_bit:
 	shl bx, 1
 	rcl cx, 1
 	shl ax, 1
 	rcl dx, 1
 	or dx, dx
-L2a0e7:
-	jns L2a0dd
-L2a0e9:
+lmd_normalised:
+	jns lmd_normalise_bit
+lmd_reciprocal:
 	mov ax, bx
 	xchg dx, cx
 	cmp cx, dx
-	jbe L2a0b9
+	jbe lmd_return
 	div cx
 	mov [bp-2], ax
 	mov [bp-6], ax
@@ -139,33 +139,33 @@ L2a0e9:
 	mov ax, [bp+4]
 	mov dx, [bp+6]
 	or dx, dx
-	jne L2a111
+	jne lmd_x_nonzero
 	or ax, ax
-	je L2a15b
-L2a111:
+	je lmd_x_sign
+lmd_x_nonzero:
 	or dx, dx
-	jns L2a11c
+	jns lmd_x_positive
 	neg ax
 	adc dx, 0
 	neg dx
-L2a11c:
+lmd_x_positive:
 	mov bx, [bp-2]
 	or bx, bx
-	je L2a127
+	je lmd_x_short
 	or dx, dx
-	jne L2a13a
-L2a127:
+	jne lmd_x_long
+lmd_x_short:
 	or dx, dx
-	jne L2a131
+	jne lmd_x_short_mul
 	xchg ax, word ptr [bp - 4]
 	xchg dx, word ptr [bp - 2]
-L2a131:
+lmd_x_short_mul:
 	xchg dx, ax
 	mul word ptr [bp-4]
 	xor ax, ax
 	xchg dx, ax
-	jmp short L2a15b
-L2a13a:
+	jmp short lmd_x_sign
+lmd_x_long:
 	mov cx, dx
 	mul word ptr [bp-2]
 	mov si, ax
@@ -180,46 +180,46 @@ L2a13a:
 	mul word ptr [bp-2]
 	add ax, di
 	adc dx, si
-L2a15b:
+lmd_x_sign:
 	mov bx, [bp+6]
 	xor bx, [bp-0ah]
-	jns L2a16a
+	jns lmd_y
 	neg ax
 	adc dx, 0
 	neg dx
-L2a16a:
+lmd_y:
 	mov [bp+4], ax
 	mov [bp+6], dx
 	mov ax, [bp+8]
 	mov dx, [bp+0ah]
 	or dx, dx
-	jne L2a17e
+	jne lmd_y_nonzero
 	or ax, ax
-	je L2a1c8
-L2a17e:
+	je lmd_y_sign
+lmd_y_nonzero:
 	or dx, dx
-	jns L2a189
+	jns lmd_y_positive
 	neg ax
 	adc dx, 0
 	neg dx
-L2a189:
+lmd_y_positive:
 	mov bx, [bp-6]
 	or bx, bx
-	je L2a194
+	je lmd_y_short
 	or dx, dx
-	jne L2a1a7
-L2a194:
+	jne lmd_y_long
+lmd_y_short:
 	or dx, dx
-	jne L2a19e
+	jne lmd_y_short_mul
 	xchg ax, word ptr [bp - 8]
 	xchg dx, word ptr [bp - 6]
-L2a19e:
+lmd_y_short_mul:
 	xchg dx, ax
 	mul word ptr [bp-8]
 	xor ax, ax
 	xchg dx, ax
-	jmp short L2a1c8
-L2a1a7:
+	jmp short lmd_y_sign
+lmd_y_long:
 	mov cx, dx
 	mul word ptr [bp-6]
 	mov si, ax
@@ -234,14 +234,14 @@ L2a1a7:
 	mul word ptr [bp-6]
 	add ax, di
 	adc dx, si
-L2a1c8:
+lmd_y_sign:
 	mov bx, [bp+0ah]
 	xor bx, [bp-0ah]
-	jns L2a1d7
+	jns lmd_y_store
 	neg ax
 	adc dx, 0
 	neg dx
-L2a1d7:
+lmd_y_store:
 	mov [bp+8], ax
 	mov [bp+0ah], dx
 	pop di
@@ -249,7 +249,7 @@ L2a1d7:
 	add sp, 10h
 	pop bp
 	ret
-c_2a1e4 label byte
+unreached_far_routine label byte
 	db 8bh, 0dch, 36h, 8bh, 5fh, 4h, 2eh, 0a1h, 0a6h, 9h, 99h, 1h, 7h, 11h, 57h, 2h
 	db 2eh, 0a1h, 0a8h, 9h, 99h, 2bh, 47h, 4h, 1bh, 57h, 6h, 89h, 47h, 4h, 89h, 57h, 6h
 	db 8bh, 0c3h, 0cbh
@@ -264,7 +264,7 @@ _scale_record_a proc far
 	mov bp, [bp+8]
 	xor ax, ax
 	push ax
-	push word ptr cs:c_2a9e2
+	push word ptr cs:scale_divisor
 	push word ptr [si+6]
 	push word ptr [si+4]
 	push word ptr [si+0ah]
@@ -291,7 +291,7 @@ _scale_record_b proc far
 	mov si, [bp+6]
 	xor ax, ax
 	push ax
-	push word ptr cs:c_2a9e2
+	push word ptr cs:scale_divisor
 	push word ptr [si+6]
 	push word ptr [si+4]
 	push ax
@@ -319,27 +319,27 @@ _mul16x16 endp
 _mul_48 proc near
 	push bx
 	push si
-	mov word ptr c_2b6c1, ax
-	mov word ptr c_2b6c3, cx
-	mov word ptr c_2b6c5, dx
+	mov word ptr m48_x, ax
+	mov word ptr m48_y, cx
+	mov word ptr m48_z, dx
 	mov si, bx
 	mov dx, [si]
 	mov bx, [si+2]
-	mov ax, word ptr c_2b6c1
+	mov ax, word ptr m48_x
 	push di
 	xor di, di
 	or bx, bx
-	jge L2a29a
+	jge m48_a_positive
 	or di, 1
 	neg bx
 	neg dx
 	sbb bx, 0
-L2a29a:
+m48_a_positive:
 	or ax, ax
-	jge L2a2a3
+	jge m48_a_mul
 	xor di, 1
 	neg ax
-L2a2a3:
+m48_a_mul:
 	mov cx, ax
 	mul dx
 	xchg bx, dx
@@ -348,35 +348,35 @@ L2a2a3:
 	add ax, bx
 	adc dx, 0
 	test di, 1
-	je L2a2c6
+	je m48_a_done
 	not cx
 	not ax
 	not dx
 	add cx, 1
 	adc ax, 0
 	adc dx, 0
-L2a2c6:
+m48_a_done:
 	pop di
-	mov word ptr c_2b6c7, dx
-	mov word ptr c_2b6c9, ax
-	mov word ptr c_2b6cb, cx
+	mov word ptr m48_sum_hi, dx
+	mov word ptr m48_sum_mid, ax
+	mov word ptr m48_sum_lo, cx
 	mov dx, [si+4]
 	mov bx, [si+6]
-	mov ax, word ptr c_2b6c3
+	mov ax, word ptr m48_y
 	push di
 	xor di, di
 	or bx, bx
-	jge L2a2ec
+	jge m48_b_positive
 	or di, 1
 	neg bx
 	neg dx
 	sbb bx, 0
-L2a2ec:
+m48_b_positive:
 	or ax, ax
-	jge L2a2f5
+	jge m48_b_mul
 	xor di, 1
 	neg ax
-L2a2f5:
+m48_b_mul:
 	mov cx, ax
 	mul dx
 	xchg bx, dx
@@ -385,41 +385,41 @@ L2a2f5:
 	add ax, bx
 	adc dx, 0
 	test di, 1
-	je L2a318
+	je m48_b_done
 	not cx
 	not ax
 	not dx
 	add cx, 1
 	adc ax, 0
 	adc dx, 0
-L2a318:
+m48_b_done:
 	pop di
-	add cx, word ptr c_2b6cb
-	adc ax, word ptr c_2b6c9
-	adc dx, word ptr c_2b6c7
-	mov bx, word ptr c_2b6c5
+	add cx, word ptr m48_sum_lo
+	adc ax, word ptr m48_sum_mid
+	adc dx, word ptr m48_sum_hi
+	mov bx, word ptr m48_z
 	or bx, bx
-	je L2a38a
-	mov word ptr c_2b6c7, dx
-	mov word ptr c_2b6c9, ax
-	mov word ptr c_2b6cb, cx
+	je m48_return
+	mov word ptr m48_sum_hi, dx
+	mov word ptr m48_sum_mid, ax
+	mov word ptr m48_sum_lo, cx
 	mov ax, bx
 	mov dx, [si+8]
 	mov bx, [si+0ah]
 	push di
 	xor di, di
 	or bx, bx
-	jge L2a351
+	jge m48_c_positive
 	or di, 1
 	neg bx
 	neg dx
 	sbb bx, 0
-L2a351:
+m48_c_positive:
 	or ax, ax
-	jge L2a35a
+	jge m48_c_mul
 	xor di, 1
 	neg ax
-L2a35a:
+m48_c_mul:
 	mov cx, ax
 	mul dx
 	xchg bx, dx
@@ -428,30 +428,30 @@ L2a35a:
 	add ax, bx
 	adc dx, 0
 	test di, 1
-	je L2a37d
+	je m48_c_done
 	not cx
 	not ax
 	not dx
 	add cx, 1
 	adc ax, 0
 	adc dx, 0
-L2a37d:
+m48_c_done:
 	pop di
-	add cx, word ptr c_2b6cb
-	adc ax, word ptr c_2b6c9
-	adc dx, word ptr c_2b6c7
-L2a38a:
+	add cx, word ptr m48_sum_lo
+	adc ax, word ptr m48_sum_mid
+	adc dx, word ptr m48_sum_hi
+m48_return:
 	pop si
 	pop bx
 	ret
-c_2a38d label byte
+unreached_rows label byte
 	db 56h, 57h, 8bh, 0f3h, 8bh, 0f9h, 8bh, 0d8h, 8ah, 44h, 12h, 0ah, 0c0h, 75h, 10h, 6h
 	db 8ch, 0d8h, 8eh, 0c0h, 8bh, 0f3h, 0b9h, 6h, 0h, 0f3h, 0a5h, 7h, 0e9h, 0a6h, 0h
-L2a3ac:
+unreached_rows_scaled:
 	dec al
-	je L2a3b2
-	jmp short L2a3fa
-L2a3b2:
+	je unreached_rows_two
+	jmp short unreached_rows_three
+unreached_rows_two:
 	mov ax, [si]
 	mov cx, [si+6]
 	mov dx, [si+0ch]
@@ -480,8 +480,8 @@ L2a3b2:
 	mov dx, [bx+0ah]
 	mov [di+8], ax
 	mov [di+0ah], dx
-	jmp short L2a452
-L2a3fa:
+	jmp short unreached_rows_return
+unreached_rows_three:
 	mov ax, [si]
 	mov cx, [si+6]
 	mov dx, [si+0ch]
@@ -518,11 +518,11 @@ L2a3fa:
 	rcl dx, 1
 	mov [di+8], ax
 	mov [di+0ah], dx
-L2a452:
+unreached_rows_return:
 	pop di
 	pop si
 	ret
-c_2a455 label byte
+mul_48_pad label byte
 	db 0h
 _mul_48 endp
 
@@ -536,13 +536,13 @@ _angle_sin proc far
 	shr ax, 1
 	shr ax, 1
 	test ax, 800h
-	je L2a471
+	je sin_index
 	neg ax
 	add ax, 1000h
-L2a471:
+sin_index:
 	mov bx, ax
 	shl bx, 1
-	mov ax, word ptr cs:c_2c293[bx]
+	mov ax, word ptr cs:cosine_table[bx]
 	retf
 _angle_sin endp
 
@@ -555,17 +555,17 @@ _angle_cos proc far
 	shr ax, 1
 	shr ax, 1
 	test ax, 800h
-	je L2a493
+	je cos_index
 	neg ax
 	add ax, 1000h
-L2a493:
+cos_index:
 	mov bx, ax
 	shl bx, 1
-	mov ax, word ptr cs:c_2c293[bx]
+	mov ax, word ptr cs:cosine_table[bx]
 	retf
-c_2a49d label byte
+arctan_table_pad label byte
 	db 0h
-c_2a49e label byte
+arctan_table label byte
 	db 0h, 0h, 1h, 0h, 2h, 0h, 3h, 0h, 5h, 0h, 6h, 0h, 7h, 0h, 8h, 0h
 	db 0ah, 0h, 0bh, 0h, 0ch, 0h, 0eh, 0h, 0fh, 0h, 10h, 0h, 11h, 0h, 13h, 0h
 	db 14h, 0h, 15h, 0h, 16h, 0h, 18h, 0h, 19h, 0h, 1ah, 0h, 1bh, 0h, 1dh, 0h
@@ -642,37 +642,37 @@ _arctan_ratio proc far
 	mov bx, [bp+8]
 	mov si, 1
 	cmp ax, 0
-	jge L2a8b5
+	jge atr_x_positive
 	neg si
 	neg ax
-L2a8b5:
+atr_x_positive:
 	mov di, 1
 	cmp bx, 0
-	jge L2a8c1
+	jge atr_y_positive
 	neg di
 	neg bx
-L2a8c1:
+atr_y_positive:
 	cmp ax, 0
-	jne L2a8d5
+	jne atr_x_nonzero
 	cmp bx, 0
-	jne L2a8d0
+	jne atr_quarter
 	mov ax, 0
-	jmp short L2a93d
-L2a8d0:
+	jmp short atr_return
+atr_quarter:
 	mov ax, 400h
-	jmp short L2a91d
-L2a8d5:
+	jmp short atr_octant
+atr_x_nonzero:
 	cmp bx, 0
-	jne L2a8de
+	jne atr_general
 	xor ax, ax
-	jmp short L2a91d
-L2a8de:
+	jmp short atr_octant
+atr_general:
 	cmp ax, bx
-	jne L2a8e7
+	jne atr_unequal
 	mov ax, 200h
-	jmp short L2a91d
-L2a8e7:
-	jb L2a903
+	jmp short atr_octant
+atr_unequal:
+	jb atr_x_smaller
 	xor dh, dh
 	mov dl, bh
 	mov bh, bl
@@ -683,9 +683,9 @@ L2a8e7:
 	div bx
 	mov bx, ax
 	shl bx, 1
-	mov ax, word ptr cs:c_2a49e[bx]
-	jmp short L2a91d
-L2a903:
+	mov ax, word ptr cs:arctan_table[bx]
+	jmp short atr_octant
+atr_x_smaller:
 	xor dh, dh
 	mov dl, ah
 	mov ah, al
@@ -696,25 +696,25 @@ L2a903:
 	mov bx, ax
 	shl bx, 1
 	mov ax, 400h
-	sub ax, word ptr cs:c_2a49e[bx]
-L2a91d:
+	sub ax, word ptr cs:arctan_table[bx]
+atr_octant:
 	cmp si, 0
-	jg L2a929
+	jg atr_y_sign
 	mov bx, 800h
 	sub bx, ax
 	mov ax, bx
-L2a929:
+atr_y_sign:
 	cmp di, 0
-	jg L2a935
+	jg atr_scale
 	mov bx, 1000h
 	sub bx, ax
 	mov ax, bx
-L2a935:
+atr_scale:
 	shl ax, 1
 	shl ax, 1
 	shl ax, 1
 	shl ax, 1
-L2a93d:
+atr_return:
 	pop di
 	pop si
 	pop bp
@@ -727,28 +727,28 @@ _arctan_lookup proc far
 	mov bp, sp
 	mov bx, [bp+6]
 	shl bx, 1
-	mov ax, word ptr cs:c_2a49e[bx]
+	mov ax, word ptr cs:arctan_table[bx]
 	pop bp
 	retf
-c_2a950 label byte
+trig_unused_a label byte
 	db 146 dup (0h)
-c_2a9e2 label byte
+scale_divisor label byte
 	db 0h, 0h, 0h, 0h
-c_2a9e6 label byte
+trig_unused_b label byte
 	db 0h, 0h
-c_2a9e8 label byte
+trig_unused_c label byte
 	db 3289 dup (0h)
-c_2b6c1 label byte
+m48_x label byte
 	db 0h, 0h
-c_2b6c3 label byte
+m48_y label byte
 	db 0h, 0h
-c_2b6c5 label byte
+m48_z label byte
 	db 0h, 0h
-c_2b6c7 label byte
+m48_sum_hi label byte
 	db 0h, 0h
-c_2b6c9 label byte
+m48_sum_mid label byte
 	db 0h, 0h
-c_2b6cb label byte
+m48_sum_lo label byte
 	db 2752 dup (0h)
 	db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh
 	db 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
@@ -767,7 +767,7 @@ c_2b6cb label byte
 	db 4h, 5h, 5h, 6h, 6h, 6h, 6h, 6h, 0f8h, 0f8h, 0f8h, 0f8h, 0f8h, 0f9h, 0f9h, 0fah
 	db 0fbh, 0fbh, 0fch, 0fdh, 0fdh, 0feh, 0ffh, 0ffh, 0h, 0h, 1h, 2h, 2h, 3h, 4h, 4h
 	db 5h, 6h, 6h, 7h, 7h, 7h, 7h, 7h
-c_2c293 label byte
+cosine_table label byte
 	db 0h, 40h, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh, 0ffh, 3fh
 	db 0feh, 3fh, 0feh, 3fh, 0feh, 3fh, 0fdh, 3fh, 0fdh, 3fh, 0fch, 3fh, 0fch, 3fh, 0fbh, 3fh
 	db 0fbh, 3fh, 0fah, 3fh, 0f9h, 3fh, 0f9h, 3fh, 0f8h, 3fh, 0f7h, 3fh, 0f6h, 3fh, 0f5h, 3fh

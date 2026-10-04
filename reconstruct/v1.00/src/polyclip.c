@@ -48,13 +48,13 @@ _detect_pcjr proc far
         mov bx, 0fffeh
         mov al, byte ptr es:[bx]
         cmp al, 0ffh
-        jne L20c00
+        jne pcjr_answer
         mov bx, 0c000h
         mov al, byte ptr es:[bx]
         cmp al, 21h
-        jne L20c00
+        jne pcjr_answer
         mov byte ptr DGROUP:_g_vmds+1ch, 1
-L20c00:
+pcjr_answer:
         mov al, byte ptr DGROUP:_g_vmds+1ch
         cbw
         pop bx
@@ -67,54 +67,54 @@ _clip_polygon proc far
         xor di, di
         mov ax, word ptr DGROUP:_g_vmds+19ch
         cmp ax, 1
-        jg L20c14
-        jmp L21087
-L20c14:
+        jg x_begin
+        jmp clip_return
+x_begin:
         dec ax
         mov bx, ax
         shl bx, 1
         xor cl, cl
         mov ax, word ptr [bx+393ch]
         cmp ax, word ptr DGROUP:_g_vmds+4h
-        jge L20c28
+        jge x_prev_coded
         or cl, 1
-L20c28:
+x_prev_coded:
         cmp ax, word ptr DGROUP:_g_vmds+6h
-        jle L20c31
+        jle x_start
         or cl, 2
-L20c31:
+x_start:
         xor si, si
-L20c33:
+x_edge:
         shl si, 1
         xor ch, ch
         mov ax, word ptr [si+393ch]
         cmp ax, word ptr DGROUP:_g_vmds+4h
-        jge L20c44
+        jge x_cur_coded
         or ch, 1
-L20c44:
+x_cur_coded:
         cmp ax, word ptr DGROUP:_g_vmds+6h
-        jle L20c4d
+        jle x_classify
         or ch, 2
-L20c4d:
+x_classify:
         mov al, cl
         or al, ch
-        jne L20c69
+        jne x_crossing
         mov ax, word ptr [si+393ch]
         mov word ptr [di+398ch], ax
         mov ax, word ptr [si+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-        jmp L20e25
-L20c69:
+        jmp x_next
+x_crossing:
         mov al, cl
         and al, ch
-        je L20c72
-        jmp L20e25
-L20c72:
+        je x_prev_in
+        jmp x_next
+x_prev_in:
         or cl, cl
-        jne L20cdd
+        jne x_prev_out
         test ch, 1
-        je L20ca9
+        je x_leave_right
         mov ax, word ptr DGROUP:_g_vmds+4h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [si+393ch]
@@ -128,10 +128,10 @@ L20c72:
         add ax, word ptr [si+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-        jmp short L20cda
-L20ca9:
+        jmp short x_left
+x_leave_right:
         test ch, 2
-        je L20cda
+        je x_left
         mov ax, word ptr DGROUP:_g_vmds+6h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [si+393ch]
@@ -145,15 +145,15 @@ L20ca9:
         add ax, word ptr [si+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-L20cda:
-        jmp L20e25
-L20cdd:
+x_left:
+        jmp x_next
+x_prev_out:
         or ch, ch
-        je L20ce3
-        jmp short L20d5d
-L20ce3:
+        je x_enter
+        jmp short x_both_out
+x_enter:
         test cl, 1
-        je L20d16
+        je x_enter_right
         mov ax, word ptr DGROUP:_g_vmds+4h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [bx+393ch]
@@ -167,10 +167,10 @@ L20ce3:
         add ax, word ptr [bx+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-        jmp short L20d47
-L20d16:
+        jmp short x_enter_keep
+x_enter_right:
         test cl, 2
-        je L20d47
+        je x_enter_keep
         mov ax, word ptr DGROUP:_g_vmds+6h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [bx+393ch]
@@ -184,16 +184,16 @@ L20d16:
         add ax, word ptr [bx+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-L20d47:
+x_enter_keep:
         mov ax, word ptr [si+393ch]
         mov word ptr [di+398ch], ax
         mov ax, word ptr [si+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-        jmp L20e25
-L20d5d:
+        jmp x_next
+x_both_out:
         test cl, 1
-        je L20d90
+        je x_cross_from_right
         mov ax, word ptr DGROUP:_g_vmds+4h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [bx+393ch]
@@ -207,10 +207,10 @@ L20d5d:
         add ax, word ptr [bx+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-        jmp short L20dc1
-L20d90:
+        jmp short x_cross_to
+x_cross_from_right:
         test cl, 2
-        je L20dc1
+        je x_cross_to
         mov ax, word ptr DGROUP:_g_vmds+6h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [bx+393ch]
@@ -224,9 +224,9 @@ L20d90:
         add ax, word ptr [bx+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-L20dc1:
+x_cross_to:
         test ch, 1
-        je L20df4
+        je x_cross_to_right
         mov ax, word ptr DGROUP:_g_vmds+4h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [si+393ch]
@@ -240,10 +240,10 @@ L20dc1:
         add ax, word ptr [si+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-        jmp short L20e25
-L20df4:
+        jmp short x_next
+x_cross_to_right:
         test ch, 2
-        je L20e25
+        je x_next
         mov ax, word ptr DGROUP:_g_vmds+6h
         mov word ptr [di+398ch], ax
         sub ax, word ptr [si+393ch]
@@ -257,68 +257,68 @@ L20df4:
         add ax, word ptr [si+3964h]
         mov word ptr [di+39b4h], ax
         add di, 2
-L20e25:
+x_next:
         mov bx, si
         mov cl, ch
         shr si, 1
         inc si
         cmp si, word ptr DGROUP:_g_vmds+19ch
-        je L20e35
-        jmp L20c33
-L20e35:
+        je x_done
+        jmp x_edge
+x_done:
         shr di, 1
         mov ax, di
         mov word ptr DGROUP:_g_vmds+19ch, ax
         cmp ax, 1
-        jg L20e44
-        jmp L21070
-L20e44:
+        jg y_begin
+        jmp clip_copy_back
+y_begin:
         dec ax
         mov bx, ax
         shl bx, 1
         xor cl, cl
         mov ax, word ptr [bx+39b4h]
         cmp ax, word ptr DGROUP:_g_vmds+0ah
-        jle L20e58
+        jle y_prev_coded
         or cl, 4
-L20e58:
+y_prev_coded:
         cmp ax, word ptr DGROUP:_g_vmds+8h
-        jge L20e61
+        jge y_start
         or cl, 8
-L20e61:
+y_start:
         xor di, di
         mov si, di
-L20e65:
+y_edge:
         shl si, 1
         xor ch, ch
         mov ax, word ptr [si+39b4h]
         cmp ax, word ptr DGROUP:_g_vmds+0ah
-        jle L20e76
+        jle y_cur_coded
         or ch, 4
-L20e76:
+y_cur_coded:
         cmp ax, word ptr DGROUP:_g_vmds+8h
-        jge L20e7f
+        jge y_classify
         or ch, 8
-L20e7f:
+y_classify:
         mov al, cl
         or al, ch
-        jne L20e9b
+        jne y_crossing
         mov ax, word ptr [si+398ch]
         mov word ptr [di+393ch], ax
         mov ax, word ptr [si+39b4h]
         mov word ptr [di+3964h], ax
         add di, 2
-        jmp L21057
-L20e9b:
+        jmp y_next
+y_crossing:
         mov al, cl
         and al, ch
-        je L20ea4
-        jmp L21057
-L20ea4:
+        je y_prev_in
+        jmp y_next
+y_prev_in:
         or cl, cl
-        jne L20f0f
+        jne y_prev_out
         test ch, 8
-        je L20edb
+        je y_leave_bottom
         mov ax, word ptr DGROUP:_g_vmds+8h
         mov word ptr [di+3964h], ax
         sub ax, word ptr [si+39b4h]
@@ -332,10 +332,10 @@ L20ea4:
         add ax, word ptr [si+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-        jmp short L20f0c
-L20edb:
+        jmp short y_left
+y_leave_bottom:
         test ch, 4
-        je L20f0c
+        je y_left
         mov ax, word ptr DGROUP:_g_vmds+0ah
         mov word ptr [di+3964h], ax
         sub ax, word ptr [si+39b4h]
@@ -349,15 +349,15 @@ L20edb:
         add ax, word ptr [si+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-L20f0c:
-        jmp L21057
-L20f0f:
+y_left:
+        jmp y_next
+y_prev_out:
         or ch, ch
-        je L20f15
-        jmp short L20f8f
-L20f15:
+        je y_enter
+        jmp short y_both_out
+y_enter:
         test cl, 8
-        je L20f48
+        je y_enter_bottom
         mov ax, word ptr DGROUP:_g_vmds+8h
         mov word ptr [di+3964h], ax
         sub ax, word ptr [bx+39b4h]
@@ -371,10 +371,10 @@ L20f15:
         add ax, word ptr [bx+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-        jmp short L20f79
-L20f48:
+        jmp short y_enter_keep
+y_enter_bottom:
         test cl, 4
-        je L20f79
+        je y_enter_keep
         mov ax, word ptr DGROUP:_g_vmds+0ah
         mov word ptr [di+3964h], ax
         sub ax, word ptr [bx+39b4h]
@@ -388,16 +388,16 @@ L20f48:
         add ax, word ptr [bx+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-L20f79:
+y_enter_keep:
         mov ax, word ptr [si+398ch]
         mov word ptr [di+393ch], ax
         mov ax, word ptr [si+39b4h]
         mov word ptr [di+3964h], ax
         add di, 2
-        jmp L21057
-L20f8f:
+        jmp y_next
+y_both_out:
         test cl, 8
-        je L20fc2
+        je y_cross_from_bottom
         mov ax, word ptr DGROUP:_g_vmds+8h
         mov word ptr [di+3964h], ax
         sub ax, word ptr [bx+39b4h]
@@ -411,10 +411,10 @@ L20f8f:
         add ax, word ptr [bx+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-        jmp short L20ff3
-L20fc2:
+        jmp short y_cross_to
+y_cross_from_bottom:
         test cl, 4
-        je L20ff3
+        je y_cross_to
         mov ax, word ptr DGROUP:_g_vmds+0ah
         mov word ptr [di+3964h], ax
         sub ax, word ptr [bx+39b4h]
@@ -428,9 +428,9 @@ L20fc2:
         add ax, word ptr [bx+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-L20ff3:
+y_cross_to:
         test ch, 8
-        je L21026
+        je y_cross_to_bottom
         mov ax, word ptr DGROUP:_g_vmds+8h
         mov word ptr [di+3964h], ax
         sub ax, word ptr [si+39b4h]
@@ -444,10 +444,10 @@ L20ff3:
         add ax, word ptr [si+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-        jmp short L21057
-L21026:
+        jmp short y_next
+y_cross_to_bottom:
         test ch, 4
-        je L21057
+        je y_next
         mov ax, word ptr DGROUP:_g_vmds+0ah
         mov word ptr [di+3964h], ax
         sub ax, word ptr [si+39b4h]
@@ -461,20 +461,20 @@ L21026:
         add ax, word ptr [si+398ch]
         mov word ptr [di+393ch], ax
         add di, 2
-L21057:
+y_next:
         mov bx, si
         mov cl, ch
         shr si, 1
         inc si
         cmp si, word ptr DGROUP:_g_vmds+19ch
-        je L21067
-        jmp L20e65
-L21067:
+        je y_done
+        jmp y_edge
+y_done:
         shr di, 1
         mov ax, di
         mov word ptr DGROUP:_g_vmds+19ch, ax
-        jmp short L21087
-L21070:
+        jmp short clip_return
+clip_copy_back:
         mov ax, word ptr DGROUP:_g_vmds+19ch
         mov cx, ax
         mov si, offset DGROUP:_g_vmds+0fch
@@ -484,7 +484,7 @@ L21070:
         mov si, offset DGROUP:_g_vmds+124h
         mov di, offset DGROUP:_g_vmds+0d4h
         rep movsw
-L21087:
+clip_return:
         retf
 _clip_polygon endp
 POLYCLIP_TEXT ends

@@ -70,43 +70,43 @@
  */
 asm {
 _DATA segment word public 'DATA'
-d_4724 label byte
+joy_a_present label byte
         db 0h
-d_4725 label byte
+joy_b_present label byte
         db 0h
-d_4726 label byte
+joy_axis_bits label byte
         db 0h
-d_4727 label byte
+joy_a_x_centre label byte
         db 0h, 0h
-d_4729 label byte
+joy_a_y_centre label byte
         db 0h, 0h
-d_472b label byte
+joy_b_x_centre label byte
         db 0h, 0h
-d_472d label byte
+joy_b_y_centre label byte
         db 0h, 0h
-d_472f label byte
+joy_a_x_scale label byte
         db 0h, 0h
-d_4731 label byte
+joy_a_y_scale label byte
         db 0h, 0h
-d_4733 label byte
+joy_b_x_scale label byte
         db 0h, 0h
-d_4735 label byte
+joy_b_y_scale label byte
         db 0h, 0h
-d_4737 label byte
+joy_read_x label byte
         db 0h, 0h
-d_4739 label byte
+joy_delay label byte
         db 0h, 0h
-d_473b label byte
+joy_dir_x label byte
         db 0h, 0h
-d_473d label byte
+joy_dir_y label byte
         db 0h, 0h, 0h
-d_4740 label byte
+mouse_x label byte
         db 0h, 0h
-d_4742 label byte
+mouse_y label byte
         db 0h, 0h
-d_4744 label byte
+mouse_handler_off label byte
         db 0h, 0h
-d_4746 label byte
+mouse_handler_seg label byte
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
@@ -133,33 +133,33 @@ d_4746 label byte
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h
-d_48da label byte
+saved_gc_0_1 label byte
         db 0h, 0h
-d_48dc label byte
+saved_gc_4 label byte
         db 0h, 0h
-d_48de label byte
+saved_gc_8 label byte
         db 0h, 0h
-d_48e0 label byte
+saved_seq_map_mask label byte
         db 0h, 0h
-d_48e2 label byte
+saved_gc_3 label byte
         db 0h, 0h, 0h, 0h
-d_48e6 label byte
+gc_mode_fill label byte
         db 2h
-d_48e7 label byte
+gc_mode_fill_256 label byte
         db 40h
-d_48e8 label byte
+gc_mode_copy label byte
         db 1h
-d_48e9 label byte
+gc_mode_copy_256 label byte
         db 41h
-d_48ea label byte
+mouse_taken label byte
         db 0h
-d_48eb label byte
+mouse_buttons label byte
         db 0h
-d_48ec label byte
+divide_hooked label byte
         db 0h
-d_48ed label byte
+old_divide_off label byte
         db 0h, 0h
-d_48ef label byte
+old_divide_seg label byte
         db 0h, 0h, 0h
 _DATA ends
 
@@ -183,60 +183,60 @@ _joy_time_axes proc near
         pushf
         push bp
         cli
-        mov bp, word ptr DGROUP:d_4739
+        mov bp, word ptr DGROUP:joy_delay
         mov cx, 190h
-L21b51:
+time_wait_ready:
         mov ax, cx
         mov cx, bp
-L21b55:
-        loop L21b55
+time_wait_delay:
+        loop time_wait_delay
         mov cx, ax
         in al, dx
         test al, bl
-        loopne L21b51
-        jcxz L21b60
-L21b60:
+        loopne time_wait_ready
+        jcxz time_fire
+time_fire:
         mov cx, 190h
         xor al, al
         out dx, al
         xor si, si
         mov di, si
         test bl, 3
-        je L21b8b
-L21b6f:
+        je time_count_b
+time_count_a:
         mov ax, cx
         mov cx, bp
-L21b73:
-        loop L21b73
+time_delay_a:
+        loop time_delay_a
         mov cx, ax
         in al, dx
         and al, bl
-        je L21b88
+        je time_done
         shr al, 1
         adc si, 0
         shr al, 1
         adc di, 0
-        loop L21b6f
-L21b88:
+        loop time_count_a
+time_done:
         pop bp
         popf
         ret
-L21b8b:
+time_count_b:
         mov ax, cx
         mov cx, bp
-L21b8f:
-        loop L21b8f
+time_delay_b:
+        loop time_delay_b
         mov cx, ax
         in al, dx
         and al, bl
-        je L21b88
+        je time_done
         shr al, 1
         shr al, 1
         shr al, 1
         adc si, 0
         shr al, 1
         adc di, 0
-        loop L21b8b
+        loop time_count_b
         pop bp
         popf
         ret
@@ -247,33 +247,33 @@ _joy_scale_axis proc near
         push di
         sub ax, bx
         or ax, ax
-        jge L21bb9
+        jge scale_positive
         mov di, 1
         neg ax
-        jmp short L21bbc
-L21bb9:
+        jmp short scale_sign_set
+scale_positive:
         mov di, 0
-L21bbc:
+scale_sign_set:
         or cx, cx
-        je L21bc8
+        je scale_scaled
         xor dx, dx
         mul cx
         mov al, ah
         mov ah, dl
-L21bc8:
+scale_scaled:
         cmp ax, 7fh
-        jbe L21bd0
+        jbe scale_clamped
         mov ax, 7fh
-L21bd0:
+scale_clamped:
         cmp al, 8
-        jae L21bd6
+        jae scale_dead_zone_done
         xor al, al
-L21bd6:
+scale_dead_zone_done:
         xor ah, ah
         test di, 1
-        je L21be0
+        je scale_return
         neg ax
-L21be0:
+scale_return:
         pop di
         ret
 _joy_scale_axis endp
@@ -296,7 +296,7 @@ _joy_init proc far
         in al, 40h
         xchg al, ah
         mov si, ax
-L21c01:
+init_calibrate:
         mov ax, ax
         mov ax, ax
         nop
@@ -306,7 +306,7 @@ L21c01:
         mov ax, ax
         in al, dx
         test al, al
-        loop L21c01
+        loop init_calibrate
         mov al, 6
         out 43h, al
         in al, 40h
@@ -327,100 +327,100 @@ L21c01:
         mov ax, 6fcch
         div si
         cmp ax, 0
-        jne L21c40
+        jne init_delay_set
         mov ax, 1
-L21c40:
-        mov word ptr DGROUP:d_4739, ax
+init_delay_set:
+        mov word ptr DGROUP:joy_delay, ax
         mov bx, 3
         call _joy_time_axes
         mov ax, si
-        mov word ptr DGROUP:d_4727, ax
+        mov word ptr DGROUP:joy_a_x_centre, ax
         cmp ax, 190h
-        rcr byte ptr DGROUP:d_4726, 1
+        rcr byte ptr DGROUP:joy_axis_bits, 1
         mov ax, di
-        mov word ptr DGROUP:d_4729, ax
+        mov word ptr DGROUP:joy_a_y_centre, ax
         cmp ax, 190h
-        rcr byte ptr DGROUP:d_4726, 1
-        mov al, byte ptr DGROUP:d_4726
+        rcr byte ptr DGROUP:joy_axis_bits, 1
+        mov al, byte ptr DGROUP:joy_axis_bits
         and al, 0c0h
         cmp al, 0c0h
-        jne L21c71
-        mov byte ptr DGROUP:d_4724, 1
-        jmp short L21c76
-L21c71:
-        mov byte ptr DGROUP:d_4724, 0
-L21c76:
+        jne init_a_absent
+        mov byte ptr DGROUP:joy_a_present, 1
+        jmp short init_a_x_scale
+init_a_absent:
+        mov byte ptr DGROUP:joy_a_present, 0
+init_a_x_scale:
         or si, si
-        je L21c86
+        je init_a_y_scale
         mov cx, si
         mov ax, 7f00h
         xor dx, dx
         div cx
-        mov word ptr DGROUP:d_472f, ax
-L21c86:
+        mov word ptr DGROUP:joy_a_x_scale, ax
+init_a_y_scale:
         or di, di
-        je L21c96
+        je init_b
         mov cx, di
         mov ax, 7f00h
         xor dx, dx
         div cx
-        mov word ptr DGROUP:d_4731, ax
-L21c96:
+        mov word ptr DGROUP:joy_a_y_scale, ax
+init_b:
         mov bx, 0ch
         call _joy_time_axes
         mov ax, si
         cmp ax, 190h
-        mov word ptr DGROUP:d_472b, ax
-        rcr byte ptr DGROUP:d_4726, 1
+        mov word ptr DGROUP:joy_b_x_centre, ax
+        rcr byte ptr DGROUP:joy_axis_bits, 1
         mov ax, di
-        mov word ptr DGROUP:d_472d, ax
+        mov word ptr DGROUP:joy_b_y_centre, ax
         cmp ax, 190h
-        rcr byte ptr DGROUP:d_4726, 1
-        mov al, byte ptr DGROUP:d_4726
+        rcr byte ptr DGROUP:joy_axis_bits, 1
+        mov al, byte ptr DGROUP:joy_axis_bits
         and al, 0c0h
         cmp al, 0c0h
-        jne L21cc4
-        mov byte ptr DGROUP:d_4725, 1
-        jmp short L21cc9
-L21cc4:
-        mov byte ptr DGROUP:d_4725, 0
-L21cc9:
+        jne init_b_absent
+        mov byte ptr DGROUP:joy_b_present, 1
+        jmp short init_b_x_scale
+init_b_absent:
+        mov byte ptr DGROUP:joy_b_present, 0
+init_b_x_scale:
         or si, si
-        je L21cd9
+        je init_b_y_scale
         mov cx, si
         mov ax, 7f00h
         xor dx, dx
         div cx
-        mov word ptr DGROUP:d_4733, ax
-L21cd9:
+        mov word ptr DGROUP:joy_b_x_scale, ax
+init_b_y_scale:
         or di, di
-        je L21ce9
+        je init_check_ports
         mov cx, di
         mov ax, 7f00h
         xor dx, dx
         div cx
-        mov word ptr DGROUP:d_4735, ax
-L21ce9:
+        mov word ptr DGROUP:joy_b_y_scale, ax
+init_check_ports:
         mov dx, 201h
         out dx, al
         mov cx, 14h
-L21cf0:
-        loop L21cf0
+init_settle:
+        loop init_settle
         in al, dx
         test al, 3
-        jne L21cfc
-        mov byte ptr DGROUP:d_4724, 0
-L21cfc:
+        jne init_check_b
+        mov byte ptr DGROUP:joy_a_present, 0
+init_check_b:
         test al, 0ch
-        jne L21d05
-        mov byte ptr DGROUP:d_4725, 0
-L21d05:
+        jne init_answer
+        mov byte ptr DGROUP:joy_b_present, 0
+init_answer:
         mov cl, 4
-        shr byte ptr DGROUP:d_4726, cl
+        shr byte ptr DGROUP:joy_axis_bits, cl
         xor ax, ax
-        mov al, byte ptr DGROUP:d_4725
+        mov al, byte ptr DGROUP:joy_b_present
         shl al, 1
-        or al, byte ptr DGROUP:d_4724
+        or al, byte ptr DGROUP:joy_a_present
         pop di
         pop si
         retf
@@ -434,46 +434,46 @@ _joy_read proc far
         push di
         mov bx, word ptr [bp+6]
         cmp bx, 0
-        jne L21d54
+        jne read_b
         xor ah, ah
-        mov al, byte ptr DGROUP:d_4724
+        mov al, byte ptr DGROUP:joy_a_present
         or al, al
-        je L21d8d
+        je read_return
         mov bx, 3
         call _joy_time_axes
-        mov bx, word ptr DGROUP:d_4727
-        mov cx, word ptr DGROUP:d_472f
+        mov bx, word ptr DGROUP:joy_a_x_centre
+        mov cx, word ptr DGROUP:joy_a_x_scale
         mov ax, si
         call _joy_scale_axis
-        mov word ptr DGROUP:d_4737, ax
-        mov bx, word ptr DGROUP:d_4729
-        mov cx, word ptr DGROUP:d_4731
+        mov word ptr DGROUP:joy_read_x, ax
+        mov bx, word ptr DGROUP:joy_a_y_centre
+        mov cx, word ptr DGROUP:joy_a_y_scale
         mov ax, di
         call _joy_scale_axis
-        jmp short L21d80
-L21d54:
+        jmp short read_store
+read_b:
         xor ah, ah
-        mov al, byte ptr DGROUP:d_4725
+        mov al, byte ptr DGROUP:joy_b_present
         or al, al
-        je L21d8d
+        je read_return
         mov bx, 0ch
         call _joy_time_axes
-        mov bx, word ptr DGROUP:d_472b
-        mov cx, word ptr DGROUP:d_4733
+        mov bx, word ptr DGROUP:joy_b_x_centre
+        mov cx, word ptr DGROUP:joy_b_x_scale
         mov ax, si
         call _joy_scale_axis
-        mov word ptr DGROUP:d_4737, ax
-        mov bx, word ptr DGROUP:d_472d
-        mov cx, word ptr DGROUP:d_4735
+        mov word ptr DGROUP:joy_read_x, ax
+        mov bx, word ptr DGROUP:joy_b_y_centre
+        mov cx, word ptr DGROUP:joy_b_y_scale
         mov ax, di
         call _joy_scale_axis
-L21d80:
+read_store:
         mov si, word ptr [bp+0ah]
         mov di, word ptr [bp+8]
         mov word ptr [si], ax
-        mov ax, word ptr DGROUP:d_4737
+        mov ax, word ptr DGROUP:joy_read_x
         mov word ptr [di], ax
-L21d8d:
+read_return:
         pop di
         pop si
         pop bp
@@ -486,14 +486,14 @@ _joy_direction proc far
         mov bp, sp
         mov ax, word ptr [bp+6]
         or ax, ax
-        je L21da0
-        mov al, byte ptr DGROUP:d_4725
-        jmp short L21da3
-L21da0:
-        mov al, byte ptr DGROUP:d_4724
-L21da3:
+        je dir_a
+        mov al, byte ptr DGROUP:joy_b_present
+        jmp short dir_present
+dir_a:
+        mov al, byte ptr DGROUP:joy_a_present
+dir_present:
         or al, al
-        je L21de8
+        je dir_return
         mov ax, 473dh
         push ax
         mov ax, 473bh
@@ -504,26 +504,26 @@ L21da3:
         call near ptr _joy_read
         add sp, 6
         xor ax, ax
-        mov bx, word ptr DGROUP:d_473b
+        mov bx, word ptr DGROUP:joy_dir_x
         cmp bx, -1eh
-        jge L21dca
+        jge dir_x_not_low
         or ax, 4
-        jmp short L21dd2
-L21dca:
+        jmp short dir_y
+dir_x_not_low:
         cmp bx, 1eh
-        jl L21dd2
+        jl dir_y
         or ax, 8
-L21dd2:
-        mov bx, word ptr DGROUP:d_473d
+dir_y:
+        mov bx, word ptr DGROUP:joy_dir_y
         cmp bx, -1eh
-        jge L21de0
+        jge dir_y_not_low
         or ax, 1
-        jmp short L21de8
-L21de0:
+        jmp short dir_return
+dir_y_not_low:
         cmp bx, 1eh
-        jl L21de8
+        jl dir_return
         or ax, 2
-L21de8:
+dir_return:
         pop bp
         retf
 _joy_direction endp
@@ -557,13 +557,13 @@ _joy_axis proc far
         call _joy_time_axes
         mov cx, word ptr [bp+6]
         test cl, 1
-        je L21e1e
+        je axis_scale
         mov si, di
-L21e1e:
+axis_scale:
         mov di, cx
         shl di, 1
-        mov bx, word ptr d_4727[di]
-        mov cx, word ptr d_472f[di]
+        mov bx, word ptr joy_a_x_centre[di]
+        mov cx, word ptr joy_a_x_scale[di]
         mov ax, si
         call _joy_scale_axis
         sti
@@ -588,21 +588,21 @@ _clip_and_draw_line proc far
         mov di, word ptr [bp+0ch]
         mov al, byte ptr DGROUP:_g_vmds+3h
         or al, al
-        jne L21e55
-        jmp L21f08
-L21e55:
+        jne line_top
+        jmp line_draw
+line_top:
         mov ax, word ptr DGROUP:_g_vmds+8h
         cmp cx, ax
-        jl L21e66
+        jl line_top_first_out
         cmp di, ax
-        jge L21e81
+        jge line_left
         xchg bx, si
         xchg cx, di
-        jmp short L21e6a
-L21e66:
+        jmp short line_top_cut
+line_top_first_out:
         cmp di, ax
-        jl L21e96
-L21e6a:
+        jl line_reject
+line_top_cut:
         mov bp, di
         sub bp, cx
         sub ax, cx
@@ -614,21 +614,21 @@ L21e6a:
         add bx, ax
         mov ax, word ptr DGROUP:_g_vmds+8h
         mov cx, ax
-L21e81:
+line_left:
         mov ax, word ptr DGROUP:_g_vmds+4h
         cmp bx, ax
-        jl L21e92
+        jl line_left_first_out
         cmp si, ax
-        jge L21eb0
+        jge line_bottom
         xchg bx, si
         xchg cx, di
-        jmp short L21e99
-L21e92:
+        jmp short line_left_cut
+line_left_first_out:
         cmp si, ax
-        jge L21e99
-L21e96:
-        jmp L21f18
-L21e99:
+        jge line_left_cut
+line_reject:
+        jmp line_return
+line_left_cut:
         mov bp, si
         sub bp, bx
         sub ax, bx
@@ -640,19 +640,19 @@ L21e99:
         add cx, ax
         mov ax, word ptr DGROUP:_g_vmds+4h
         mov bx, ax
-L21eb0:
+line_bottom:
         mov ax, word ptr DGROUP:_g_vmds+0ah
         cmp cx, ax
-        ja L21ec1
+        ja line_bottom_first_out
         cmp di, ax
-        jbe L21edc
+        jbe line_right
         xchg bx, si
         xchg cx, di
-        jmp short L21ec5
-L21ec1:
+        jmp short line_bottom_cut
+line_bottom_first_out:
         cmp di, ax
-        ja L21e96
-L21ec5:
+        ja line_reject
+line_bottom_cut:
         mov bp, di
         sub bp, cx
         sub ax, cx
@@ -664,19 +664,19 @@ L21ec5:
         add bx, ax
         mov ax, word ptr DGROUP:_g_vmds+0ah
         mov cx, ax
-L21edc:
+line_right:
         mov ax, word ptr DGROUP:_g_vmds+6h
         cmp bx, ax
-        ja L21eed
+        ja line_right_first_out
         cmp si, ax
-        jbe L21f08
+        jbe line_draw
         xchg bx, si
         xchg cx, di
-        jmp short L21ef1
-L21eed:
+        jmp short line_right_cut
+line_right_first_out:
         cmp si, ax
-        ja L21e96
-L21ef1:
+        ja line_reject
+line_right_cut:
         mov bp, si
         sub bp, bx
         sub ax, bx
@@ -688,16 +688,16 @@ L21ef1:
         add cx, ax
         mov ax, word ptr DGROUP:_g_vmds+6h
         mov bx, ax
-L21f08:
+line_draw:
         mov dx, si
         mov si, di
         cmp bx, dx
-        jbe L21f14
+        jbe line_ordered
         xchg bx, dx
         xchg cx, si
-L21f14:
+line_ordered:
         call dword ptr DGROUP:_g_vm_driver+0ch
-L21f18:
+line_return:
         pop es
         pop di
         pop si
@@ -708,12 +708,12 @@ _clip_and_draw_line endp
 /* 0x21f1d */
 _mouse_init proc far
         sub ax, ax
-        cmp byte ptr DGROUP:d_48ea, al
-        jne L21f8c
+        cmp byte ptr DGROUP:mouse_taken, al
+        jne mouse_init_return
         int 33h
         neg ax
-        mov byte ptr DGROUP:d_48ea, al
-        jae L21f8c
+        mov byte ptr DGROUP:mouse_taken, al
+        jae mouse_init_return
         mov ax, 4
         mov cx, 7fffh
         mov dx, cx
@@ -746,14 +746,14 @@ _mouse_init proc far
         int 33h
         mov al, byte ptr DGROUP:_g_vmds+1dh
         cmp al, 8
-        jne L21f89
-        mov al, byte ptr DGROUP:d_48e7
-        mov byte ptr DGROUP:d_48e6, al
-        mov al, byte ptr DGROUP:d_48e9
-        mov byte ptr DGROUP:d_48e8, al
-L21f89:
+        jne mouse_init_modes_set
+        mov al, byte ptr DGROUP:gc_mode_fill_256
+        mov byte ptr DGROUP:gc_mode_fill, al
+        mov al, byte ptr DGROUP:gc_mode_copy_256
+        mov byte ptr DGROUP:gc_mode_copy, al
+mouse_init_modes_set:
         mov ax, 1
-L21f8c:
+mouse_init_return:
         retf
 _mouse_init endp
 
@@ -790,9 +790,9 @@ _mouse_set_user_handler proc far
         push bp
         mov bp, sp
         mov ax, word ptr [bp+6]
-        mov word ptr DGROUP:d_4744, ax
+        mov word ptr DGROUP:mouse_handler_off, ax
         mov ax, word ptr [bp+8]
-        mov word ptr DGROUP:d_4746, ax
+        mov word ptr DGROUP:mouse_handler_seg, ax
         pop bp
         retf
 _mouse_set_user_handler endp
@@ -811,18 +811,18 @@ _mouse_event proc far
         mov ss, ax
         sti
         mov ds, ax
-        mov byte ptr DGROUP:d_48eb, bl
-        mov word ptr DGROUP:d_4740, cx
-        mov word ptr DGROUP:d_4742, dx
-        mov ax, word ptr DGROUP:d_4744
-        or ax, word ptr DGROUP:d_4746
-        je L22004
+        mov byte ptr DGROUP:mouse_buttons, bl
+        mov word ptr DGROUP:mouse_x, cx
+        mov word ptr DGROUP:mouse_y, dx
+        mov ax, word ptr DGROUP:mouse_handler_off
+        or ax, word ptr DGROUP:mouse_handler_seg
+        je mouse_event_unstack
         push cs
         call near ptr _mouse_save_vga
-        call dword ptr DGROUP:d_4744
+        call dword ptr DGROUP:mouse_handler_off
         push cs
         call near ptr _mouse_restore_vga
-L22004:
+mouse_event_unstack:
         cli
         mov ss, si
         mov sp, bp
@@ -843,7 +843,7 @@ _mouse_save_vga proc far
         out dx, al
         inc dx
         in al, dx
-        mov word ptr DGROUP:d_48da, ax
+        mov word ptr DGROUP:saved_gc_0_1, ax
         dec dx
         mov al, 1
         out dx, al
@@ -857,27 +857,27 @@ _mouse_save_vga proc far
         out dx, al
         inc dx
         in al, dx
-        mov word ptr DGROUP:d_48dc, ax
+        mov word ptr DGROUP:saved_gc_4, ax
         dec dx
         mov al, 5
         out dx, al
         inc dx
         in al, dx
         mov ah, al
-        mov al, byte ptr DGROUP:d_48e8
+        mov al, byte ptr DGROUP:gc_mode_copy
         out dx, al
         mov di, 0ffffh
         mov bx, 0a000h
         mov es, bx
         stosb
-        mov al, byte ptr DGROUP:d_48e6
+        mov al, byte ptr DGROUP:gc_mode_fill
         out dx, al
         dec dx
         mov al, 8
         out dx, al
         inc dx
         in al, dx
-        mov word ptr DGROUP:d_48de, ax
+        mov word ptr DGROUP:saved_gc_8, ax
         mov al, 0ffh
         out dx, al
         dec dx
@@ -885,7 +885,7 @@ _mouse_save_vga proc far
         out dx, al
         inc dx
         in al, dx
-        mov byte ptr DGROUP:d_48e2, al
+        mov byte ptr DGROUP:saved_gc_3, al
         xor al, al
         out dx, al
         mov dx, 3c4h
@@ -895,7 +895,7 @@ _mouse_save_vga proc far
         out dx, al
         inc dx
         in al, dx
-        mov word ptr DGROUP:d_48e0, ax
+        mov word ptr DGROUP:saved_seq_map_mask, ax
         mov al, 0fh
         out dx, al
         retf
@@ -906,7 +906,7 @@ _mouse_restore_vga proc far
         mov dx, 3c4h
         mov al, 2
         out dx, al
-        mov ax, word ptr DGROUP:d_48e0
+        mov ax, word ptr DGROUP:saved_seq_map_mask
         inc dx
         out dx, al
         dec dx
@@ -915,20 +915,20 @@ _mouse_restore_vga proc far
         mov dx, 3ceh
         mov al, 3
         out dx, al
-        mov al, byte ptr DGROUP:d_48e2
+        mov al, byte ptr DGROUP:saved_gc_3
         inc dx
         out dx, al
         dec dx
         mov al, 8
         out dx, al
-        mov ax, word ptr DGROUP:d_48de
+        mov ax, word ptr DGROUP:saved_gc_8
         inc dx
         out dx, al
         dec dx
         mov al, 5
         out dx, al
         inc dx
-        mov al, byte ptr DGROUP:d_48e8
+        mov al, byte ptr DGROUP:gc_mode_copy
         out dx, al
         mov di, 0ffffh
         mov bx, 0a000h
@@ -939,7 +939,7 @@ _mouse_restore_vga proc far
         dec dx
         mov al, 4
         out dx, al
-        mov ax, word ptr DGROUP:d_48dc
+        mov ax, word ptr DGROUP:saved_gc_4
         inc dx
         out dx, al
         dec dx
@@ -951,7 +951,7 @@ _mouse_restore_vga proc far
         dec dx
         xor al, al
         out dx, al
-        mov ax, word ptr DGROUP:d_48da
+        mov ax, word ptr DGROUP:saved_gc_0_1
         inc dx
         out dx, al
         dec dx
@@ -963,9 +963,9 @@ _mouse_restore_vga endp
 /* 0x220cd */
 _remove_mouse proc far
         xor ax, ax
-        cmp byte ptr DGROUP:d_48ea, al
-        je L220e8
-        mov byte ptr DGROUP:d_48ea, al
+        cmp byte ptr DGROUP:mouse_taken, al
+        je remove_mouse_return
+        mov byte ptr DGROUP:mouse_taken, al
         int 33h
         mov ax, 0ch
         xor cx, cx
@@ -973,7 +973,7 @@ _remove_mouse proc far
         mov es, cx
         int 33h
         mov ax, 1
-L220e8:
+remove_mouse_return:
         retf
 _remove_mouse endp
 
@@ -984,20 +984,20 @@ _read_mouse_pointer proc far
         sub cx, cx
         mov dx, cx
         mov ax, cx
-        mov al, byte ptr DGROUP:d_48ea
+        mov al, byte ptr DGROUP:mouse_taken
         neg ax
-        jae L22111
+        jae read_pointer_return
         mov bx, word ptr [bp+6]
-        mov ax, word ptr DGROUP:d_4740
+        mov ax, word ptr DGROUP:mouse_x
         shr ax, 1
         shr ax, 1
         mov word ptr [bx], ax
         mov bx, word ptr [bp+8]
-        mov ax, word ptr DGROUP:d_4742
+        mov ax, word ptr DGROUP:mouse_y
         shr ax, 1
         shr ax, 1
         mov word ptr [bx], ax
-L22111:
+read_pointer_return:
         pop bp
         retf
 _read_mouse_pointer endp
@@ -1006,21 +1006,21 @@ _read_mouse_pointer endp
 _mouse_move_to proc far
         push bp
         mov bp, sp
-        mov al, byte ptr DGROUP:d_48ea
+        mov al, byte ptr DGROUP:mouse_taken
         neg al
-        jae L2213a
+        jae move_to_return
         mov ax, 4
         mov cx, word ptr [bp+6]
         shl cx, 1
         shl cx, 1
-        mov word ptr DGROUP:d_4740, cx
+        mov word ptr DGROUP:mouse_x, cx
         mov dx, word ptr [bp+8]
         shl dx, 1
         shl dx, 1
-        mov word ptr DGROUP:d_4742, dx
+        mov word ptr DGROUP:mouse_y, dx
         int 33h
         mov al, 1
-L2213a:
+move_to_return:
         mov ah, 0
         pop bp
         retf
@@ -1031,16 +1031,16 @@ _read_mouse_button proc far
         push bp
         mov bp, sp
         sub bx, bx
-        mov bl, byte ptr DGROUP:d_48ea
+        mov bl, byte ptr DGROUP:mouse_taken
         neg bx
-        jae L2215a
-        mov bl, byte ptr DGROUP:d_48eb
+        jae read_button_answer
+        mov bl, byte ptr DGROUP:mouse_buttons
         xor bh, bh
         mov ax, word ptr [bp+6]
         neg ax
-        jae L2215a
+        jae read_button_answer
         shr bx, 1
-L2215a:
+read_button_answer:
         mov ax, bx
         and ax, 1
         pop bp
@@ -1059,13 +1059,13 @@ _normalise_pointer proc near
         add dx, cx
         pop cx
         ret
-c_22173 db 0e8h, 0ebh, 0ffh
-c_22176 db 0f6h, 0c6h, 0f0h
-c_22179 db 74h, 8h
-c_2217b db 5h, 0f0h, 0ffh
-c_2217e db 81h, 0eah, 0ffh, 0fh
-c_22182 db 0c3h
-L22183:
+normalise_back db 0e8h, 0ebh, 0ffh
+normalise_back_3 db 0f6h, 0c6h, 0f0h
+normalise_back_6 db 74h, 8h
+normalise_back_8 db 5h, 0f0h, 0ffh
+normalise_back_b db 81h, 0eah, 0ffh, 0fh
+normalise_back_f db 0c3h
+normalise_back_low:
         shl dx, 1
         shl dx, 1
         shl dx, 1
@@ -1087,25 +1087,25 @@ _huge_add_positive proc near
         rcr bx, cl
         add dx, bx
         ret
-c_221a4 db 0f7h, 0dbh
-c_221a6 db 3h, 0c3h
-c_221a8 db 1bh, 0dbh
-c_221aa db 0f7h, 0d3h
-c_221ac db 81h, 0e3h, 0h, 10h
-c_221b0 db 2bh, 0d3h
-c_221b2 db 0e8h, 0ach, 0ffh
-c_221b5 db 8bh, 0d9h
-c_221b7 db 0b1h, 5h
-c_221b9 db 0f8h
-c_221ba db 0d3h, 0dbh
-c_221bc db 2bh, 0d3h
-c_221be db 0c3h
-c_221bf db 0e3h, 12h
-c_221c1 db 0f7h, 0c7h, 1h, 0h
-c_221c5 db 75h, 2h
-c_221c7 db 0a4h
-c_221c8 db 49h
-L221c9:
+unreached_huge_sub db 0f7h, 0dbh
+unreached_huge_sub_2 db 3h, 0c3h
+unreached_huge_sub_4 db 1bh, 0dbh
+unreached_huge_sub_6 db 0f7h, 0d3h
+unreached_huge_sub_8 db 81h, 0e3h, 0h, 10h
+unreached_huge_sub_c db 2bh, 0d3h
+unreached_huge_sub_e db 0e8h, 0ach, 0ffh
+unreached_huge_sub_11 db 8bh, 0d9h
+unreached_huge_sub_13 db 0b1h, 5h
+unreached_huge_sub_15 db 0f8h
+unreached_huge_sub_16 db 0d3h, 0dbh
+unreached_huge_sub_18 db 2bh, 0d3h
+unreached_huge_sub_1a db 0c3h
+copy_back db 0e3h, 12h
+copy_back_2 db 0f7h, 0c7h, 1h, 0h
+copy_back_6 db 75h, 2h
+copy_back_8 db 0a4h
+copy_back_9 db 49h
+copy_back_words:
         dec si
         dec di
         shr cx, 1
@@ -1113,23 +1113,23 @@ L221c9:
         rcl cx, 1
         inc si
         inc di
-L221d3:
+copy_back_bytes:
         rep movsb
         ret
-c_221d6 db 0e3h, 10h
-c_221d8 db 0f7h, 0c7h, 1h, 0h
-c_221dc db 74h, 2h
-c_221de db 0a4h
-c_221df db 49h
-L221e0:
+copy_fwd db 0e3h, 10h
+copy_fwd_2 db 0f7h, 0c7h, 1h, 0h
+copy_fwd_6 db 74h, 2h
+copy_fwd_8 db 0a4h
+copy_fwd_9 db 49h
+copy_fwd_words:
         shr cx, 1
         rep movsw
         rcl cx, 1
         rep movsb
-L221e8:
+copy_fwd_done:
         ret
-c_221e9 db 0h, 0h
-c_221eb db 0h, 0h
+move_step_fn db 0h, 0h
+move_copy_fn db 0h, 0h
 _huge_add_positive endp
 
 /* 0x221ed */
@@ -1140,8 +1140,8 @@ _huge_move proc far
         push si
         push di
         push ds
-        mov word ptr cs:c_221e9, 5f11h
-        mov word ptr cs:c_221eb, 5f86h
+        mov word ptr cs:move_step_fn, 5f11h
+        mov word ptr cs:move_copy_fn, 5f86h
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
         mov word ptr [bp-4], ax
@@ -1153,23 +1153,23 @@ _huge_move proc far
         mov dx, word ptr [bp+0ch]
         call _normalise_pointer
         cmp dx, word ptr [bp+8]
-        ja L2226c
-        jb L22233
+        ja move_set_source
+        jb move_backward
         cmp ax, word ptr [bp+6]
-        ja L2226c
-        jb L22233
-        jmp L222b8
-L22233:
+        ja move_set_source
+        jb move_backward
+        jmp move_return
+move_backward:
         std
-        mov word ptr cs:c_221e9, 5f23h
-        mov word ptr cs:c_221eb, 5f6fh
+        mov word ptr cs:move_step_fn, 5f23h
+        mov word ptr cs:move_copy_fn, 5f6fh
         mov ax, word ptr [bp+6]
         mov dx, word ptr [bp+8]
         mov bx, word ptr [bp+0eh]
         mov cx, word ptr [bp+10h]
         sub bx, 1
         sbb cx, 0
-        js L222b8
+        js move_return
         push cx
         push bx
         call _huge_add_positive
@@ -1180,40 +1180,40 @@ L22233:
         pop bx
         pop cx
         call _huge_add_positive
-L2226c:
+move_set_source:
         mov ds, dx
         mov si, ax
         mov es, word ptr [bp+8]
         mov di, word ptr [bp+6]
-L22276:
+move_chunk:
         sub cx, cx
         mov bx, 7d00h
         cmp word ptr [bp+10h], cx
-        jne L2228d
+        jne move_chunk_sized
         mov ax, word ptr [bp+0eh]
         cmp ax, cx
-        je L222b8
+        je move_return
         cmp ax, bx
-        jg L2228d
+        jg move_chunk_sized
         mov bx, ax
-L2228d:
+move_chunk_sized:
         mov cx, bx
         mov ax, si
         mov dx, ds
-        call word ptr cs:c_221e9
+        call word ptr cs:move_step_fn
         mov si, ax
         mov ds, dx
         mov ax, di
         mov dx, es
-        call word ptr cs:c_221e9
+        call word ptr cs:move_step_fn
         mov di, ax
         mov es, dx
-        call word ptr cs:c_221eb
+        call word ptr cs:move_copy_fn
         sub ax, ax
         sub word ptr [bp+0eh], bx
         sbb word ptr [bp+10h], ax
-        jmp short L22276
-L222b8:
+        jmp short move_chunk
+move_return:
         mov dx, word ptr [bp-2]
         mov ax, word ptr [bp-4]
         cld
@@ -1230,7 +1230,7 @@ _far_memcpy proc far
         push bp
         mov bp, sp
         mov cx, word ptr [bp+0eh]
-        jcxz L222fe
+        jcxz memcpy_return
         push si
         push di
         push ds
@@ -1245,10 +1245,10 @@ _far_memcpy proc far
         mov es, dx
         mov di, ax
         test di, 1
-        jae L222f3
+        jae memcpy_even
         movsb
         dec cx
-L222f3:
+memcpy_even:
         shr cx, 1
         rep movsw
         rcl cx, 1
@@ -1256,7 +1256,7 @@ L222f3:
         pop ds
         pop di
         pop si
-L222fe:
+memcpy_return:
         pop bp
         retf
 _far_memcpy endp
@@ -1274,18 +1274,18 @@ _far_memset proc far
         mov ax, word ptr [bp+0ah]
         mov ah, al
         mov si, ax
-L22315:
+memset_chunk:
         sub bx, bx
         mov cx, 7d00h
         cmp word ptr [bp+0eh], bx
-        jne L2232c
+        jne memset_chunk_sized
         mov ax, word ptr [bp+0ch]
         cmp ax, bx
-        je L22356
+        je memset_return
         cmp ax, cx
-        jg L2232c
+        jg memset_chunk_sized
         mov cx, ax
-L2232c:
+memset_chunk_sized:
         mov bx, cx
         mov ax, di
         mov dx, es
@@ -1294,21 +1294,21 @@ L2232c:
         mov es, dx
         mov ax, si
         cmp cx, 0ah
-        jl L2234c
+        jl memset_bytes
         or di, di
-        jp L22346
+        jp memset_aligned
         stosb
         dec cx
-L22346:
+memset_aligned:
         shr cx, 1
         rep stosw
         rcl cl, 1
-L2234c:
+memset_bytes:
         rep stosb
         sub word ptr [bp+0ch], bx
         sbb word ptr [bp+0eh], cx
-        jmp short L22315
-L22356:
+        jmp short memset_chunk
+memset_return:
         pop di
         pop si
         pop bp
@@ -1328,15 +1328,15 @@ _far_ptr_compare proc far
         mov dx, word ptr [bp+0ch]
         call _normalise_pointer
         cmp cx, dx
-        jb L2237d
-        ja L22381
+        jb compare_not_above
+        ja compare_above
         cmp bx, ax
-        ja L22381
-L2237d:
+        ja compare_above
+compare_not_above:
         sbb ax, ax
         pop bp
         retf
-L22381:
+compare_above:
         mov ax, 1
         pop bp
         retf
@@ -1357,13 +1357,13 @@ _normalise_pointer_far endp
 _install_divide_trap proc far
         push ax
         push es
-        mov byte ptr DGROUP:d_48ec, 1
+        mov byte ptr DGROUP:divide_hooked, 1
         sub ax, ax
         mov es, ax
         mov ax, word ptr es:[0]
-        mov word ptr DGROUP:d_48ef, ax
+        mov word ptr DGROUP:old_divide_seg, ax
         mov ax, word ptr es:[2]
-        mov word ptr DGROUP:d_48ed, ax
+        mov word ptr DGROUP:old_divide_off, ax
         cli
         mov word ptr es:[0], offset _divide_error_handler
         mov word ptr es:[2], cs
@@ -1387,22 +1387,22 @@ _divide_error_handler proc near
         mov ax, word ptr es:[bx]
         and ax, 0feh
         cmp ax, 0f6h
-        je L223e1
+        je divide_have_opcode
         sub bx, 2
         mov ax, bx
         mov word ptr [bp+2], ax
-L223e1:
+divide_have_opcode:
         mov ax, word ptr es:[bx]
         test ax, 1
-        je L223f0
+        je divide_byte
         pop ax
         sar dx, 1
         rcr ax, 1
-        jmp short L223f3
-L223f0:
+        jmp short divide_return
+divide_byte:
         pop ax
         sar ax, 1
-L223f3:
+divide_return:
         pop es
         pop bx
         pop bp
@@ -1414,18 +1414,18 @@ _restore_int0_vector proc far
         push ax
         push es
         xor ax, ax
-        cmp byte ptr DGROUP:d_48ec, al
-        je L22418
-        mov byte ptr DGROUP:d_48ec, al
+        cmp byte ptr DGROUP:divide_hooked, al
+        je restore_int0_return
+        mov byte ptr DGROUP:divide_hooked, al
         sub ax, ax
         mov es, ax
         cli
-        mov ax, word ptr DGROUP:d_48ef
+        mov ax, word ptr DGROUP:old_divide_seg
         mov ax, word ptr es:[0]
-        mov ax, word ptr DGROUP:d_48ed
+        mov ax, word ptr DGROUP:old_divide_off
         mov ax, word ptr es:[2]
         sti
-L22418:
+restore_int0_return:
         pop es
         pop ax
         retf
@@ -1436,21 +1436,21 @@ _read_pixel_clipped proc far
         push bp
         mov bp, sp
         cmp byte ptr DGROUP:_g_vmds+3h, 0
-        je L22443
+        je read_pixel_inside
         mov ax, word ptr [bp+6]
         cmp ax, word ptr DGROUP:_g_vmds+4h
-        jl L22448
+        jl read_pixel_outside
         cmp ax, word ptr DGROUP:_g_vmds+6h
-        jg L22448
+        jg read_pixel_outside
         mov ax, word ptr [bp+8]
         cmp ax, word ptr DGROUP:_g_vmds+8h
-        jl L22448
+        jl read_pixel_outside
         cmp ax, word ptr DGROUP:_g_vmds+0ah
-        jg L22448
-L22443:
+        jg read_pixel_outside
+read_pixel_inside:
         pop bp
         jmp dword ptr DGROUP:_g_vm_driver+58h
-L22448:
+read_pixel_outside:
         pop bp
         mov ax, 0ffffh
         retf
@@ -1461,21 +1461,21 @@ _plot_pixel_clipped proc far
         push bp
         mov bp, sp
         cmp byte ptr DGROUP:_g_vmds+3h, 0
-        je L22475
+        je plot_pixel_inside
         mov ax, word ptr [bp+6]
         cmp ax, word ptr DGROUP:_g_vmds+4h
-        jl L2247a
+        jl plot_pixel_outside
         cmp ax, word ptr DGROUP:_g_vmds+6h
-        jg L2247a
+        jg plot_pixel_outside
         mov ax, word ptr [bp+8]
         cmp ax, word ptr DGROUP:_g_vmds+8h
-        jl L2247a
+        jl plot_pixel_outside
         cmp ax, word ptr DGROUP:_g_vmds+0ah
-        jg L2247a
-L22475:
+        jg plot_pixel_outside
+plot_pixel_inside:
         pop bp
         jmp dword ptr DGROUP:_g_vm_driver+5ch
-L2247a:
+plot_pixel_outside:
         pop bp
         mov ax, 0ffffh
         retf

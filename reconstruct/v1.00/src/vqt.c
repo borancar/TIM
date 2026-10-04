@@ -77,7 +77,7 @@ _vqt_read_bits proc near
         and ax, bx
         pop bp
         ret
-L2599a:
+screen_node_none:
         pop di
         pop si
         add sp, 2
@@ -96,7 +96,7 @@ _vqt_screen_node proc near
         mov di, word ptr [bp+0ah]
         mov ax, si
         or ax, di
-        je L2599a
+        je screen_node_none
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -131,16 +131,16 @@ _vqt_screen_node proc near
         push word ptr [bp+6]
         push word ptr [bp+4]
         test byte ptr [bp-2], 8
-        je L25a0e
+        je screen_q0_fill
         call _vqt_screen_node
-        jmp short L25a1d
-L25a0e:
+        jmp short screen_q1
+screen_q0_fill:
         call _fill_screen_quadrant
         mov ax, word ptr DGROUP:_g_vmds+14h
         push ax
         call FAR PTR _redraw_cursor
         add sp, 2
-L25a1d:
+screen_q1:
         add sp, 8
         mov ax, di
         shr ax, 1
@@ -155,12 +155,12 @@ L25a1d:
         add bx, word ptr [bp+4]
         push bx
         test byte ptr [bp-2], 4
-        je L25a41
+        je screen_q1_fill
         call _vqt_screen_node
-        jmp short L25a44
-L25a41:
+        jmp short screen_q2
+screen_q1_fill:
         call _fill_screen_quadrant
-L25a44:
+screen_q2:
         add sp, 8
         mov ax, di
         mov bx, ax
@@ -175,12 +175,12 @@ L25a44:
         push bx
         push word ptr [bp+4]
         test byte ptr [bp-2], 2
-        je L25a68
+        je screen_q2_fill
         call _vqt_screen_node
-        jmp short L25a6b
-L25a68:
+        jmp short screen_q3
+screen_q2_fill:
         call _fill_screen_quadrant
-L25a6b:
+screen_q3:
         add sp, 8
         mov ax, di
         mov bx, ax
@@ -199,19 +199,19 @@ L25a6b:
         add cx, word ptr [bp+4]
         push cx
         test byte ptr [bp-2], 1
-        je L25a95
+        je screen_q3_fill
         call _vqt_screen_node
-        jmp short L25a98
-L25a95:
+        jmp short screen_node_done
+screen_q3_fill:
         call _fill_screen_quadrant
-L25a98:
+screen_node_done:
         add sp, 8
         pop di
         pop si
         add sp, 2
         pop bp
         ret
-L25aa2:
+screen_fill_none:
         pop di
         pop si
         add sp, 10ah
@@ -228,16 +228,16 @@ _fill_screen_quadrant proc near
         push di
         mov ax, word ptr [bp+0ah]
         or ax, ax
-        je L25aa2
+        je screen_fill_none
         mov di, ax
         mov ax, word ptr [bp+8]
         or ax, ax
-        je L25aa2
+        je screen_fill_none
         mov si, ax
         cmp si, 1
-        jne L25b39
+        jne screen_fill_area
         cmp di, 1
-        jne L25b39
+        jne screen_fill_area
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -283,21 +283,21 @@ _fill_screen_quadrant proc near
         add sp, 10ah
         pop bp
         ret
-L25b39:
+screen_fill_area:
         mov ax, si
         mov bx, di
         mul bl
         mov word ptr [bp-6], ax
         mov cx, 8
         or ah, ah
-        jne L25b52
+        jne screen_fill_read_colours
         xor cx, cx
         dec al
-L25b4d:
+screen_fill_area_bits:
         inc cx
         shr al, 1
-        jne L25b4d
-L25b52:
+        jne screen_fill_area_bits
+screen_fill_read_colours:
         push bp
         mov bx, cx
         mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
@@ -329,12 +329,12 @@ L25b52:
         xor cx, cx
         mov word ptr [bp-4], ax
         or al, al
-        je L25ba3
-L25b9e:
+        je screen_fill_choose
+screen_fill_index_bits:
         inc cx
         shr al, 1
-        jne L25b9e
-L25ba3:
+        jne screen_fill_index_bits
+screen_fill_choose:
         mov ax, word ptr [bp+4]
         mov di, ax
         add ax, word ptr [bp+8]
@@ -357,8 +357,8 @@ L25ba3:
         shl cx, 1
         add ax, cx
         cmp bx, ax
-        ja L25c53
-L25bdc:
+        ja screen_fill_coded
+screen_fill_raw:
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -401,19 +401,19 @@ L25bdc:
         mov byte ptr es:[bx], ch
         inc si
         cmp si, word ptr [bp-0ah]
-        jl L25bdc
+        jl screen_fill_raw
         mov si, word ptr [bp+6]
         inc di
         cmp di, word ptr [bp-8]
-        jl L25bdc
+        jl screen_fill_raw
         pop di
         pop si
         add sp, 10ah
         pop bp
         ret
-L25c53:
+screen_fill_coded:
         cmp byte ptr [bp-4], 1
-        jne L25cbf
+        jne screen_fill_palette
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -443,7 +443,7 @@ L25c53:
         mov bx, word ptr DGROUP:_g_vmds+18h
         mov es, bx
         mov si, word ptr [bp+0ah]
-L25ca3:
+screen_fill_solid_row:
         mov cx, word ptr [bp+8]
         mov bx, word ptr [bp+4]
         push di
@@ -452,15 +452,15 @@ L25ca3:
         pop di
         add di, 50h
         dec si
-        jne L25ca3
+        jne screen_fill_solid_row
         pop di
         pop si
         add sp, 10ah
         pop bp
         ret
-L25cbf:
+screen_fill_palette:
         lea di, [bp-10ah]
-L25cc3:
+screen_fill_palette_read:
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -488,9 +488,9 @@ L25cc3:
         mov es, bx
         stosb
         dec byte ptr [bp-4]
-        jne L25cc3
+        jne screen_fill_palette_read
         mov di, word ptr [bp+4]
-L25d08:
+screen_fill_indexed:
         push bp
         mov bx, word ptr [bp-2]
         mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
@@ -541,13 +541,13 @@ L25d08:
         mov byte ptr es:[bx], ch
         inc si
         cmp si, word ptr [bp-0ah]
-        jl L25d08
+        jl screen_fill_indexed
         mov si, word ptr [bp+6]
         inc di
         cmp di, word ptr [bp-8]
-        jae L25d8e
-        jmp L25d08
-L25d8e:
+        jae screen_fill_done
+        jmp screen_fill_indexed
+screen_fill_done:
         pop di
         pop si
         add sp, 10ah
@@ -567,15 +567,15 @@ _far_copy proc near
         mov cx, word ptr [bp+0ch]
         shr cx, 1
         rep movsw
-        jae L25dac
+        jae far_copy_even
         movsb
-L25dac:
+far_copy_even:
         pop di
         pop si
         pop ds
         pop bp
         ret
-L25db1:
+node_none:
         pop di
         pop si
         add sp, 2
@@ -594,7 +594,7 @@ _vqt_node proc near
         mov di, word ptr [bp+0ah]
         mov ax, si
         or ax, di
-        je L25db1
+        je node_none
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -629,12 +629,12 @@ _vqt_node proc near
         push word ptr [bp+6]
         push word ptr [bp+4]
         test byte ptr [bp-2], 8
-        je L25e25
+        je q0_fill
         call _vqt_node
-        jmp short L25e28
-L25e25:
+        jmp short q1
+q0_fill:
         call _fill_quadrant
-L25e28:
+q1:
         add sp, 8
         mov ax, di
         shr ax, 1
@@ -649,12 +649,12 @@ L25e28:
         add bx, word ptr [bp+4]
         push bx
         test byte ptr [bp-2], 4
-        je L25e4c
+        je q1_fill
         call _vqt_node
-        jmp short L25e4f
-L25e4c:
+        jmp short q2
+q1_fill:
         call _fill_quadrant
-L25e4f:
+q2:
         add sp, 8
         mov ax, di
         mov bx, ax
@@ -669,12 +669,12 @@ L25e4f:
         push bx
         push word ptr [bp+4]
         test byte ptr [bp-2], 2
-        je L25e73
+        je q2_fill
         call _vqt_node
-        jmp short L25e76
-L25e73:
+        jmp short q3
+q2_fill:
         call _fill_quadrant
-L25e76:
+q3:
         add sp, 8
         mov ax, di
         mov bx, ax
@@ -693,19 +693,19 @@ L25e76:
         add cx, word ptr [bp+4]
         push cx
         test byte ptr [bp-2], 1
-        je L25ea0
+        je q3_fill
         call _vqt_node
-        jmp short L25ea3
-L25ea0:
+        jmp short node_done
+q3_fill:
         call _fill_quadrant
-L25ea3:
+node_done:
         add sp, 8
         pop di
         pop si
         add sp, 2
         pop bp
         ret
-L25ead:
+fill_none:
         pop di
         pop si
         add sp, 10ah
@@ -722,16 +722,16 @@ _fill_quadrant proc near
         push di
         mov ax, word ptr [bp+0ah]
         or ax, ax
-        je L25ead
+        je fill_none
         mov di, ax
         mov ax, word ptr [bp+8]
         or ax, ax
-        je L25ead
+        je fill_none
         mov si, ax
         cmp si, 1
-        jne L25f3f
+        jne fill_area
         cmp di, 1
-        jne L25f3f
+        jne fill_area
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -776,21 +776,21 @@ _fill_quadrant proc near
         add sp, 10ah
         pop bp
         ret
-L25f3f:
+fill_area:
         mov ax, si
         mov bx, di
         mul bl
         mov word ptr [bp-6], ax
         mov cx, 8
         or ah, ah
-        jne L25f58
+        jne fill_read_colours
         xor cx, cx
         dec al
-L25f53:
+fill_area_bits:
         inc cx
         shr al, 1
-        jne L25f53
-L25f58:
+        jne fill_area_bits
+fill_read_colours:
         push bp
         mov bx, cx
         mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
@@ -822,12 +822,12 @@ L25f58:
         xor cx, cx
         mov word ptr [bp-4], ax
         or al, al
-        je L25fa9
-L25fa4:
+        je fill_choose
+fill_index_bits:
         inc cx
         shr al, 1
-        jne L25fa4
-L25fa9:
+        jne fill_index_bits
+fill_choose:
         mov ax, word ptr [bp+4]
         mov di, ax
         add ax, word ptr [bp+8]
@@ -850,8 +850,8 @@ L25fa9:
         shl cx, 1
         add ax, cx
         cmp bx, ax
-        ja L26052
-L25fe2:
+        ja fill_coded
+fill_raw:
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -892,19 +892,19 @@ L25fe2:
         mov di, cx
         inc si
         cmp si, word ptr [bp-0ah]
-        jl L25fe2
+        jl fill_raw
         mov si, word ptr [bp+6]
         inc di
         cmp di, word ptr [bp-8]
-        jl L25fe2
+        jl fill_raw
         pop di
         pop si
         add sp, 10ah
         pop bp
         ret
-L26052:
+fill_coded:
         cmp byte ptr [bp-4], 1
-        jne L260c9
+        jne fill_palette
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -930,10 +930,10 @@ L26052:
         shr ax, cl
         mov byte ptr [bp-2], al
         mov dx, word ptr [bp+6]
-L26096:
+fill_solid_row:
         mov si, word ptr [bp+4]
         mov cx, word ptr [bp+8]
-L2609c:
+fill_solid_pixel:
         mov di, word ptr DGROUP:_g_bitmap_compress+2ah
         lea bx, [di+18h]
         mov ax, dx
@@ -947,18 +947,18 @@ L2609c:
         mov al, byte ptr [bp-2]
         stosb
         inc si
-        loop L2609c
+        loop fill_solid_pixel
         inc dx
         dec word ptr [bp+0ah]
-        jne L26096
+        jne fill_solid_row
         pop di
         pop si
         add sp, 10ah
         pop bp
         ret
-L260c9:
+fill_palette:
         lea di, [bp-10ah]
-L260cd:
+fill_palette_read:
         mov bx, word ptr DGROUP:_g_bitmap_compress+2ah
         mov ax, word ptr [bx]
         mov dx, word ptr [bx+2]
@@ -986,9 +986,9 @@ L260cd:
         mov es, bx
         stosb
         dec byte ptr [bp-4]
-        jne L260cd
+        jne fill_palette_read
         mov di, word ptr [bp+4]
-L26112:
+fill_indexed:
         push bp
         mov bx, word ptr [bp-2]
         mov bp, word ptr DGROUP:_g_bitmap_compress+2ah
@@ -1037,13 +1037,13 @@ L26112:
         mov di, cx
         inc si
         cmp si, word ptr [bp-0ah]
-        jl L26112
+        jl fill_indexed
         mov si, word ptr [bp+6]
         inc di
         cmp di, word ptr [bp-8]
-        jge L26190
-        jmp short L26112
-L26190:
+        jge fill_done
+        jmp short fill_indexed
+fill_done:
         pop di
         pop si
         add sp, 10ah

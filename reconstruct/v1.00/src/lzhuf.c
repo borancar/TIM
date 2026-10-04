@@ -40,64 +40,64 @@
  */
 asm {
 _BSS segment word public 'BSS'
-d_58d2 db 2 dup (?)
-d_58d4 db 2 dup (?)
-d_58d6 db 2 dup (?)
-d_58d8 db 2 dup (?)
-d_58da db 2 dup (?)
-d_58dc db 2 dup (?)
-d_58de db 2 dup (?)
-d_58e0 db 2 dup (?)
-d_58e2 db 2 dup (?)
-d_58e4 db 2 dup (?)
-d_58e6 db 2 dup (?)
-d_58e8 db 2 dup (?)
-d_58ea db 2 dup (?)
-d_58ec db 2 dup (?)
-d_58ee db 2 dup (?)
-d_58f0 db 2 dup (?)
-d_58f2 db 2 dup (?)
-d_58f4 db 2 dup (?)
-d_58f6 db 2 dup (?)
-d_58f8 db 2 dup (?)
-d_58fa db 2 dup (?)
-d_58fc db 2 dup (?)
-d_58fe db 2 dup (?)
-d_5900 db 2 dup (?)
-d_5902 db 2 dup (?)
-d_5904 db 2 dup (?)
-d_5906 db 2 dup (?)
-d_5908 db 2 dup (?)
-d_590a db 2 dup (?)
-d_590c db 2 dup (?)
-d_590e db 2 dup (?)
-d_5910 db 2 dup (?)
-d_5912 db 2 dup (?)
-d_5914 db 2 dup (?)
-d_5916 db 2 dup (?)
-d_5918 db 2 dup (?)
+enc_waiting db 2 dup (?)
+enc_i db 2 dup (?)
+enc_c db 2 dup (?)
+enc_len db 2 dup (?)
+enc_r db 2 dup (?)
+enc_s db 2 dup (?)
+enc_last_match_length db 2 dup (?)
+match_interrupted db 2 dup (?)
+match_position db 2 dup (?)
+match_length db 2 dup (?)
+match_progress db 2 dup (?)
+lzss_ring_pos db 2 dup (?)
+lzss_count_lo db 2 dup (?)
+lzss_count_hi db 2 dup (?)
+lzss_size_lo db 2 dup (?)
+lzss_size_hi db 2 dup (?)
+enc_match_length db 2 dup (?)
+lzh_lson_off db 2 dup (?)
+lzh_lson_seg db 2 dup (?)
+lzh_rson_off db 2 dup (?)
+lzh_rson_seg db 2 dup (?)
+enc_match_position db 2 dup (?)
+enc_started db 2 dup (?)
+huff_son_off db 2 dup (?)
+huff_son_seg db 2 dup (?)
+huff_len db 2 dup (?)
+lzh_dad_off db 2 dup (?)
+lzh_dad_seg db 2 dup (?)
+huff_freq_off db 2 dup (?)
+huff_freq_seg db 2 dup (?)
+huff_prnt_off db 2 dup (?)
+huff_prnt_seg db 2 dup (?)
+lzss_ring_off db 2 dup (?)
+lzss_ring_seg db 2 dup (?)
+huff_code db 2 dup (?)
+lzss_ready db 2 dup (?)
 _BSS ends
 
 _DATA segment word public 'DATA'
-d_3600 label byte
+lzh_getbuf label byte
         db 0h, 0h
-d_3602 label byte
+lzh_getlen label byte
         db 0h
-d_3603 label byte
+lzh_putbuf label byte
         db 0h, 0h
-d_3605 label byte
+lzh_putlen label byte
         db 0h
-d_3606 label byte
+lzh_p_len label byte
         db 3h, 4h, 4h, 4h, 5h, 5h, 5h, 5h, 5h, 5h, 5h, 5h, 6h, 6h, 6h, 6h
         db 6h, 6h, 6h, 6h, 6h, 6h, 6h, 6h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h
         db 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h, 7h
         db 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h, 8h
-d_3646 label byte
+lzh_p_code label byte
         db 0h, 20h, 30h, 40h, 50h, 58h, 60h, 68h, 70h, 78h, 80h, 88h, 90h, 94h, 98h, 9ch
         db 0a0h, 0a4h, 0a8h, 0ach, 0b0h, 0b4h, 0b8h, 0bch, 0c0h, 0c2h, 0c4h, 0c6h, 0c8h, 0cah, 0cch, 0ceh
         db 0d0h, 0d2h, 0d4h, 0d6h, 0d8h, 0dah, 0dch, 0deh, 0e0h, 0e2h, 0e4h, 0e6h, 0e8h, 0eah, 0ech, 0eeh
         db 0f0h, 0f1h, 0f2h, 0f3h, 0f4h, 0f5h, 0f6h, 0f7h, 0f8h, 0f9h, 0fah, 0fbh, 0fch, 0fdh, 0feh, 0ffh
-d_3686 label byte
+lzh_d_code label byte
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h, 0h
         db 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h, 1h
@@ -114,7 +114,7 @@ d_3686 label byte
         db 20h, 20h, 21h, 21h, 22h, 22h, 23h, 23h, 24h, 24h, 25h, 25h, 26h, 26h, 27h, 27h
         db 28h, 28h, 29h, 29h, 2ah, 2ah, 2bh, 2bh, 2ch, 2ch, 2dh, 2dh, 2eh, 2eh, 2fh, 2fh
         db 30h, 31h, 32h, 33h, 34h, 35h, 36h, 37h, 38h, 39h, 3ah, 3bh, 3ch, 3dh, 3eh, 3fh
-d_3786 label byte
+lzh_d_len label byte
         db 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h
         db 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h, 3h
         db 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h, 4h
@@ -149,9 +149,9 @@ public _decompress_lzss
 
 /* 0x1dba8 */
 _lzss_open_write proc near
-        mov word ptr DGROUP:d_58fe, 0
-        mov word ptr DGROUP:d_3603, 0
-        mov byte ptr DGROUP:d_3605, 0
+        mov word ptr DGROUP:enc_started, 0
+        mov word ptr DGROUP:lzh_putbuf, 0
+        mov byte ptr DGROUP:lzh_putlen, 0
         xor ax, ax
         push ax
         push ax
@@ -160,8 +160,8 @@ _lzss_open_write proc near
         push dx
         call FAR PTR _dos_alloc_bytes
         add sp, 8
-        mov word ptr DGROUP:d_58f6, dx
-        mov word ptr DGROUP:d_58f4, ax
+        mov word ptr DGROUP:lzh_lson_seg, dx
+        mov word ptr DGROUP:lzh_lson_off, ax
         xor ax, ax
         push ax
         push ax
@@ -170,8 +170,8 @@ _lzss_open_write proc near
         push dx
         call FAR PTR _dos_alloc_bytes
         add sp, 8
-        mov word ptr DGROUP:d_58fa, dx
-        mov word ptr DGROUP:d_58f8, ax
+        mov word ptr DGROUP:lzh_rson_seg, dx
+        mov word ptr DGROUP:lzh_rson_off, ax
         xor ax, ax
         push ax
         push ax
@@ -180,27 +180,27 @@ _lzss_open_write proc near
         push dx
         call FAR PTR _dos_alloc_bytes
         add sp, 8
-        mov word ptr DGROUP:d_5908, dx
-        mov word ptr DGROUP:d_5906, ax
+        mov word ptr DGROUP:lzh_dad_seg, dx
+        mov word ptr DGROUP:lzh_dad_off, ax
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
-        mov word ptr DGROUP:d_5914, ax
-        mov word ptr DGROUP:d_5912, dx
+        mov word ptr DGROUP:lzss_ring_seg, ax
+        mov word ptr DGROUP:lzss_ring_off, dx
         xor ax, ax
         ret
 _lzss_open_write endp
 
 /* 0x1dc15 */
 _lzss_reset proc near
-        mov word ptr DGROUP:d_5918, 0
-        mov word ptr DGROUP:d_3600, 0
-        mov byte ptr DGROUP:d_3602, 0
+        mov word ptr DGROUP:lzss_ready, 0
+        mov word ptr DGROUP:lzh_getbuf, 0
+        mov byte ptr DGROUP:lzh_getlen, 0
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
-        mov word ptr DGROUP:d_5914, ax
-        mov word ptr DGROUP:d_5912, dx
+        mov word ptr DGROUP:lzss_ring_seg, ax
+        mov word ptr DGROUP:lzss_ring_off, dx
         xor ax, ax
         ret
 _lzss_reset endp
@@ -209,29 +209,29 @@ _lzss_reset endp
 _init_tree proc near
         push si
         mov si, 1001h
-        jmp short L1dc50
-L1dc40:
+        jmp short init_rson_test
+init_rson_loop:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         mov word ptr es:[bx], 1000h
         inc si
-L1dc50:
+init_rson_test:
         cmp si, 1100h
-        jle L1dc40
+        jle init_rson_loop
         xor si, si
-        jmp short L1dc6a
-L1dc5a:
+        jmp short init_dad_test
+init_dad_loop:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], 1000h
         inc si
-L1dc6a:
+init_dad_test:
         cmp si, 1000h
-        jl L1dc5a
+        jl init_dad_loop
         pop si
         ret
 _init_tree endp
@@ -244,8 +244,8 @@ _insert_node proc near
         push si
         push di
         mov cx, 1
-        mov ax, word ptr DGROUP:d_5914
-        mov dx, word ptr DGROUP:d_5912
+        mov ax, word ptr DGROUP:lzss_ring_seg
+        mov dx, word ptr DGROUP:lzss_ring_off
         add dx, word ptr [bp+4]
         mov word ptr [bp-2], ax
         mov word ptr [bp-4], dx
@@ -256,179 +256,179 @@ _insert_node proc near
         mov si, ax
         mov dx, word ptr [bp+4]
         shl dx, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, dx
         mov ax, 1000h
         mov word ptr es:[bx], ax
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, dx
         mov word ptr es:[bx], ax
-        mov word ptr DGROUP:d_58f2, 0
-L1dcba:
+        mov word ptr DGROUP:enc_match_length, 0
+insert_step:
         or cx, cx
-        jl L1dcea
+        jl insert_left
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         cmp word ptr es:[bx], 1000h
-        je L1dcd4
+        je insert_new_right
         mov si, word ptr es:[bx]
-        jmp short L1dce8
-L1dcd4:
+        jmp short insert_go_compare
+insert_new_right:
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], si
-        jmp L1de4b
-L1dce8:
-        jmp short L1dd14
-L1dcea:
+        jmp insert_return
+insert_go_compare:
+        jmp short insert_compare
+insert_left:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         cmp word ptr es:[bx], 1000h
-        je L1dd00
+        je insert_new_left
         mov si, word ptr es:[bx]
-        jmp short L1dd14
-L1dd00:
+        jmp short insert_compare
+insert_new_left:
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], si
-        jmp L1de4b
-L1dd14:
+        jmp insert_return
+insert_compare:
         mov di, 1
-        jmp short L1dd35
-L1dd19:
+        jmp short insert_compare_test
+insert_compare_loop:
         les bx, dword ptr [bp-4]
         mov cl, byte ptr es:[bx+di]
         mov ch, 0
-        les bx, dword ptr DGROUP:d_5912
+        les bx, dword ptr DGROUP:lzss_ring_off
         add bx, si
         add bx, di
         mov dl, byte ptr es:[bx]
         mov dh, 0
         sub cx, dx
         or cx, cx
-        jne L1dd3a
+        jne insert_compared
         inc di
-L1dd35:
+insert_compare_test:
         cmp di, 3ch
-        jl L1dd19
-L1dd3a:
+        jl insert_compare_loop
+insert_compared:
         cmp di, 2
-        jle L1dd7b
-        cmp di, word ptr DGROUP:d_58f2
-        jle L1dd5a
+        jle insert_next
+        cmp di, word ptr DGROUP:enc_match_length
+        jle insert_same_length
         mov ax, word ptr [bp+4]
         sub ax, si
         and ax, 0fffh
         dec ax
-        mov word ptr DGROUP:d_58fc, ax
-        mov word ptr DGROUP:d_58f2, di
+        mov word ptr DGROUP:enc_match_position, ax
+        mov word ptr DGROUP:enc_match_length, di
         cmp di, 3ch
-        jge L1dd7e
-L1dd5a:
-        cmp di, word ptr DGROUP:d_58f2
-        jne L1dd7b
+        jge insert_replace
+insert_same_length:
+        cmp di, word ptr DGROUP:enc_match_length
+        jne insert_next
         mov ax, word ptr [bp+4]
         sub ax, si
         and ax, 0fffh
         dec ax
         mov word ptr [bp-6], ax
-        cmp ax, word ptr DGROUP:d_58fc
-        jb L1dd75
-        jmp L1dcba
-L1dd75:
+        cmp ax, word ptr DGROUP:enc_match_position
+        jb insert_nearer
+        jmp insert_step
+insert_nearer:
         mov ax, word ptr [bp-6]
-        mov word ptr DGROUP:d_58fc, ax
-L1dd7b:
-        jmp L1dcba
-L1dd7e:
+        mov word ptr DGROUP:enc_match_position, ax
+insert_next:
+        jmp insert_step
+insert_replace:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov bx, word ptr [bp+4]
         shl bx, 1
-        add bx, word ptr DGROUP:d_5906
+        add bx, word ptr DGROUP:lzh_dad_off
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov bx, word ptr [bp+4]
         shl bx, 1
-        add bx, word ptr DGROUP:d_58f4
+        add bx, word ptr DGROUP:lzh_lson_off
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov bx, word ptr [bp+4]
         shl bx, 1
-        add bx, word ptr DGROUP:d_58f8
+        add bx, word ptr DGROUP:lzh_rson_off
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr es:[bx]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         cmp word ptr es:[bx], si
-        jne L1de21
+        jne insert_parent_left
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
-        jmp short L1de3c
-L1de21:
+        jmp short insert_unlink
+insert_parent_left:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr es:[bx]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
-L1de3c:
+insert_unlink:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], 1000h
-L1de4b:
+insert_return:
         pop di
         pop si
         mov sp, bp
@@ -445,153 +445,153 @@ _delete_node proc near
         mov di, word ptr [bp+4]
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         cmp word ptr es:[bx], 1000h
-        jne L1de6d
-        jmp L1dfd2
-L1de6d:
+        jne delete_present
+        jmp delete_return
+delete_present:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         cmp word ptr es:[bx], 1000h
-        jne L1de8e
+        jne delete_has_right
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov si, word ptr es:[bx]
-        jmp L1df81
-L1de8e:
+        jmp delete_link_parent
+delete_has_right:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         cmp word ptr es:[bx], 1000h
-        jne L1deaf
+        jne delete_two_children
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         mov si, word ptr es:[bx]
-        jmp L1df81
-L1deaf:
-        mov si, word ptr es:[bx]
-        mov ax, si
-        shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
-        add bx, ax
-        cmp word ptr es:[bx], 1000h
-        jne L1dec6
-        jmp L1df51
-L1dec6:
-        mov ax, si
-        shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
-        add bx, ax
-L1ded0:
+        jmp delete_link_parent
+delete_two_children:
         mov si, word ptr es:[bx]
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         cmp word ptr es:[bx], 1000h
-        jne L1ded0
+        jne delete_find_max
+        jmp delete_take_right
+delete_find_max:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_rson_off
+        add bx, ax
+delete_max_loop:
+        mov si, word ptr es:[bx]
+        mov ax, si
+        shl ax, 1
+        les bx, dword ptr DGROUP:lzh_rson_off
+        add bx, ax
+        cmp word ptr es:[bx], 1000h
+        jne delete_max_loop
+        mov ax, si
+        shl ax, 1
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, si
         shl dx, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, dx
         mov dx, word ptr es:[bx]
         shl dx, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, si
         shl dx, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, dx
         mov dx, word ptr es:[bx]
         shl dx, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov bx, si
         shl bx, 1
-        add bx, word ptr DGROUP:d_58f4
+        add bx, word ptr DGROUP:lzh_lson_off
         mov word ptr es:[bx], ax
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], si
-L1df51:
+delete_take_right:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov bx, si
         shl bx, 1
-        add bx, word ptr DGROUP:d_58f8
+        add bx, word ptr DGROUP:lzh_rson_off
         mov word ptr es:[bx], ax
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         mov ax, word ptr es:[bx]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], si
-L1df81:
+delete_link_parent:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov bx, si
         shl bx, 1
-        add bx, word ptr DGROUP:d_5906
+        add bx, word ptr DGROUP:lzh_dad_off
         mov word ptr es:[bx], ax
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f8
+        les bx, dword ptr DGROUP:lzh_rson_off
         add bx, ax
         cmp word ptr es:[bx], di
-        jne L1dfab
+        jne delete_parent_left
         mov word ptr es:[bx], si
-        jmp short L1dfc3
-L1dfab:
+        jmp short delete_unlink
+delete_parent_left:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov ax, word ptr es:[bx]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_58f4
+        les bx, dword ptr DGROUP:lzh_lson_off
         add bx, ax
         mov word ptr es:[bx], si
-L1dfc3:
+delete_unlink:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5906
+        les bx, dword ptr DGROUP:lzh_dad_off
         add bx, ax
         mov word ptr es:[bx], 1000h
-L1dfd2:
+delete_return:
         pop di
         pop si
         pop bp
@@ -601,24 +601,24 @@ _delete_node endp
 /* 0x1dfd6 */
 _huff_get_bit proc near
         push si
-        cmp byte ptr DGROUP:d_3602, 8
-        ja L1dff4
+        cmp byte ptr DGROUP:lzh_getlen, 8
+        ja bit_take
         call _next_input_byte
         mov ah, 0
         mov cl, 8
-        sub cl, byte ptr DGROUP:d_3602
+        sub cl, byte ptr DGROUP:lzh_getlen
         shl ax, cl
-        or word ptr DGROUP:d_3600, ax
-        add byte ptr DGROUP:d_3602, 8
-L1dff4:
-        mov si, word ptr DGROUP:d_3600
-        shl word ptr DGROUP:d_3600, 1
-        sub byte ptr DGROUP:d_3602, 1
+        or word ptr DGROUP:lzh_getbuf, ax
+        add byte ptr DGROUP:lzh_getlen, 8
+bit_take:
+        mov si, word ptr DGROUP:lzh_getbuf
+        shl word ptr DGROUP:lzh_getbuf, 1
+        sub byte ptr DGROUP:lzh_getlen, 1
         xor ax, ax
         cmp si, 0
-        jge L1e009
+        jge bit_return
         inc ax
-L1e009:
+bit_return:
         pop si
         ret
 _huff_get_bit endp
@@ -628,31 +628,31 @@ _huff_get_byte proc near
         push bp
         mov bp, sp
         push si
-        jmp short L1e02a
-L1e011:
+        jmp short byte_need
+byte_fill:
         call _next_input_byte
         mov ah, 0
         mov cl, 8
-        sub cl, byte ptr DGROUP:d_3602
+        sub cl, byte ptr DGROUP:lzh_getlen
         shl ax, cl
-        or word ptr DGROUP:d_3600, ax
-        mov al, byte ptr DGROUP:d_3602
+        or word ptr DGROUP:lzh_getbuf, ax
+        mov al, byte ptr DGROUP:lzh_getlen
         add al, 8
-        mov byte ptr DGROUP:d_3602, al
-L1e02a:
-        cmp byte ptr DGROUP:d_3602, 8
-        jbe L1e011
-        mov si, word ptr DGROUP:d_3600
+        mov byte ptr DGROUP:lzh_getlen, al
+byte_need:
+        cmp byte ptr DGROUP:lzh_getlen, 8
+        jbe byte_fill
+        mov si, word ptr DGROUP:lzh_getbuf
         mov cl, 8
-        shl word ptr DGROUP:d_3600, cl
-        mov al, byte ptr DGROUP:d_3602
+        shl word ptr DGROUP:lzh_getbuf, cl
+        mov al, byte ptr DGROUP:lzh_getlen
         add al, 0f8h
-        mov byte ptr DGROUP:d_3602, al
+        mov byte ptr DGROUP:lzh_getlen, al
         mov ax, si
         mov cl, 8
         shr ax, cl
-        jmp short L1e04b
-L1e04b:
+        jmp short byte_return
+byte_return:
         pop si
         pop bp
         ret
@@ -665,41 +665,41 @@ _huff_putcode proc near
         push si
         mov si, word ptr [bp+6]
         mov ax, si
-        mov cl, byte ptr DGROUP:d_3605
+        mov cl, byte ptr DGROUP:lzh_putlen
         shr ax, cl
-        or word ptr DGROUP:d_3603, ax
-        mov al, byte ptr DGROUP:d_3605
+        or word ptr DGROUP:lzh_putbuf, ax
+        mov al, byte ptr DGROUP:lzh_putlen
         add al, byte ptr [bp+4]
-        mov byte ptr DGROUP:d_3605, al
+        mov byte ptr DGROUP:lzh_putlen, al
         cmp al, 8
-        jb L1e0b0
-        mov ax, word ptr DGROUP:d_3603
+        jb putcode_return
+        mov ax, word ptr DGROUP:lzh_putbuf
         mov cl, 8
         shr ax, cl
         push ax
         call _put_output_byte
         add sp, 2
-        mov al, byte ptr DGROUP:d_3605
+        mov al, byte ptr DGROUP:lzh_putlen
         add al, 0f8h
-        mov byte ptr DGROUP:d_3605, al
+        mov byte ptr DGROUP:lzh_putlen, al
         cmp al, 8
-        jb L1e0aa
-        push word ptr DGROUP:d_3603
+        jb putcode_shift
+        push word ptr DGROUP:lzh_putbuf
         call _put_output_byte
         add sp, 2
-        mov al, byte ptr DGROUP:d_3605
+        mov al, byte ptr DGROUP:lzh_putlen
         add al, 0f8h
-        mov byte ptr DGROUP:d_3605, al
+        mov byte ptr DGROUP:lzh_putlen, al
         mov cl, byte ptr [bp+4]
-        sub cl, byte ptr DGROUP:d_3605
+        sub cl, byte ptr DGROUP:lzh_putlen
         mov ax, si
         shl ax, cl
-        mov word ptr DGROUP:d_3603, ax
-        jmp short L1e0b0
-L1e0aa:
+        mov word ptr DGROUP:lzh_putbuf, ax
+        jmp short putcode_return
+putcode_shift:
         mov cl, 8
-        shl word ptr DGROUP:d_3603, cl
-L1e0b0:
+        shl word ptr DGROUP:lzh_putbuf, cl
+putcode_return:
         pop si
         pop bp
         ret
@@ -715,31 +715,31 @@ _huffman_start proc near
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         add dx, 103bh
-        mov word ptr DGROUP:d_590c, ax
-        mov word ptr DGROUP:d_590a, dx
+        mov word ptr DGROUP:huff_freq_seg, ax
+        mov word ptr DGROUP:huff_freq_off, dx
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         add dx, 1523h
-        mov word ptr DGROUP:d_5910, ax
-        mov word ptr DGROUP:d_590e, dx
+        mov word ptr DGROUP:huff_prnt_seg, ax
+        mov word ptr DGROUP:huff_prnt_off, dx
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+4]
         mov dx, word ptr [bx+2]
         add dx, 1c7dh
-        mov word ptr DGROUP:d_5902, ax
-        mov word ptr DGROUP:d_5900, dx
+        mov word ptr DGROUP:huff_son_seg, ax
+        mov word ptr DGROUP:huff_son_off, dx
         xor si, si
-        jmp short L1e12d
-L1e0fb:
+        jmp short start_leaves
+start_leaf:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov word ptr es:[bx], 1
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov ax, si
         add ax, 273h
@@ -747,59 +747,59 @@ L1e0fb:
         mov ax, si
         add ax, 273h
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov word ptr es:[bx], si
         inc si
-L1e12d:
+start_leaves:
         cmp si, 13ah
-        jl L1e0fb
+        jl start_leaf
         xor si, si
         mov di, 13ah
-        jmp short L1e18f
-L1e13a:
+        jmp short start_nodes
+start_node:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, si
         inc dx
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         add ax, word ptr es:[bx]
         mov dx, di
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov word ptr es:[bx], si
         mov ax, si
         inc ax
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, di
         mov word ptr es:[bx], ax
         mov dx, si
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, dx
         mov word ptr es:[bx], ax
         inc si
         inc si
         inc di
-L1e18f:
+start_nodes:
         cmp di, 272h
-        jle L1e13a
-        les bx, dword ptr DGROUP:d_590a
+        jle start_node
+        les bx, dword ptr DGROUP:huff_freq_off
         mov word ptr es:[bx+4e6h], 0ffffh
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         mov word ptr es:[bx+4e4h], 0
         pop di
         pop si
@@ -816,79 +816,79 @@ _huffman_reconst proc near
         push di
         xor cx, cx
         xor si, si
-        jmp short L1e207
-L1e1bd:
+        jmp short rebuild_collect_loop
+rebuild_collect:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         cmp word ptr es:[bx], 273h
-        jl L1e206
+        jl rebuild_collect_next
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr es:[bx]
         inc ax
         shr ax, 1
         mov dx, cx
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, cx
         shl dx, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, dx
         mov word ptr es:[bx], ax
         inc cx
-L1e206:
+rebuild_collect_next:
         inc si
-L1e207:
+rebuild_collect_loop:
         cmp si, 273h
-        jl L1e1bd
+        jl rebuild_collect
         xor si, si
         mov cx, 13ah
-        jmp L1e2dc
-L1e215:
+        jmp rebuild_node_loop
+rebuild_node:
         mov ax, si
         inc ax
         mov di, ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, di
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         add ax, word ptr es:[bx]
         mov dx, cx
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov word ptr [bp-4], ax
         mov ax, cx
         dec ax
         mov di, ax
-        jmp short L1e24c
-L1e24b:
+        jmp short rebuild_find
+rebuild_find_back:
         dec di
-L1e24c:
+rebuild_find:
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr es:[bx]
         cmp ax, word ptr [bp-4]
-        ja L1e24b
+        ja rebuild_find_back
         inc di
         mov ax, cx
         sub ax, di
@@ -897,98 +897,98 @@ L1e24c:
         mov ax, word ptr [bp-6]
         dec ax
         mov word ptr [bp-2], ax
-        jmp short L1e2b6
-L1e271:
+        jmp short rebuild_shift_test
+rebuild_shift_loop:
         mov ax, di
         add ax, word ptr [bp-2]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, di
         add dx, word ptr [bp-2]
         inc dx
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov ax, di
         add ax, word ptr [bp-2]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov dx, di
         add dx, word ptr [bp-2]
         inc dx
         shl dx, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, dx
         mov word ptr es:[bx], ax
         dec word ptr [bp-2]
-L1e2b6:
+rebuild_shift_test:
         cmp word ptr [bp-2], 0
-        jge L1e271
+        jge rebuild_shift_loop
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr [bp-4]
         mov word ptr es:[bx], ax
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov word ptr es:[bx], si
         inc si
         inc si
         inc cx
-L1e2dc:
+rebuild_node_loop:
         cmp cx, 273h
-        jge L1e2e5
-        jmp L1e215
-L1e2e5:
+        jge rebuild_links
+        jmp rebuild_node
+rebuild_links:
         xor si, si
-        jmp short L1e32a
-L1e2e9:
+        jmp short rebuild_link_loop
+rebuild_link:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov di, ax
         cmp ax, 273h
-        jl L1e30c
+        jl rebuild_link_pair
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov word ptr es:[bx], si
-        jmp short L1e329
-L1e30c:
+        jmp short rebuild_link_next
+rebuild_link_pair:
         mov ax, di
         inc ax
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, si
         mov word ptr es:[bx], ax
         mov dx, di
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, dx
         mov word ptr es:[bx], ax
-L1e329:
+rebuild_link_next:
         inc si
-L1e32a:
+rebuild_link_loop:
         cmp si, 273h
-        jl L1e2e9
+        jl rebuild_link
         pop di
         pop si
         mov sp, bp
         pop bp
-        jmp short L1e350
-c_1e337 db 90h
+        jmp short update_climb
+rebuild_pad db 90h
 _huffman_reconst endp
 
 /* 0x1e338 */
@@ -998,22 +998,22 @@ _huffman_update proc near
         sub sp, 4
         push si
         push di
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         cmp word ptr es:[bx+4e4h], 8000h
-        jne L1e350
+        jne update_climb
         jmp _huffman_reconst
-L1e350:
+update_climb:
         mov ax, word ptr [bp+4]
         add ax, 273h
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov word ptr [bp+4], ax
-L1e364:
+update_node:
         mov ax, word ptr [bp+4]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         inc word ptr es:[bx]
         mov ax, word ptr es:[bx]
@@ -1023,79 +1023,79 @@ L1e364:
         add bx, 2
         mov ax, word ptr es:[bx]
         cmp ax, word ptr [bp-2]
-        jb L1e38a
-        jmp L1e427
-L1e38a:
+        jb update_find
+        jmp update_up
+update_find:
         inc si
         add bx, 2
         mov ax, word ptr es:[bx]
         cmp ax, word ptr [bp-2]
-        jb L1e38a
+        jb update_find
         dec si
         sub bx, 2
         mov ax, word ptr es:[bx]
         mov dx, word ptr [bp+4]
         shl dx, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, dx
         mov word ptr es:[bx], ax
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590a
+        les bx, dword ptr DGROUP:huff_freq_off
         add bx, ax
         mov ax, word ptr [bp-2]
         mov word ptr es:[bx], ax
         mov ax, word ptr [bp+4]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov word ptr [bp-4], ax
         mov ax, word ptr [bp-4]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov word ptr es:[bx], si
         cmp word ptr [bp-4], 273h
-        jge L1e3e7
+        jge update_swap_other
         add bx, 2
         mov word ptr es:[bx], si
-L1e3e7:
+update_swap_other:
         mov ax, si
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov di, word ptr es:[bx]
         mov ax, word ptr [bp-4]
         mov word ptr es:[bx], ax
         mov ax, di
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, word ptr [bp+4]
         mov word ptr es:[bx], ax
         cmp di, 273h
-        jge L1e416
+        jge update_swapped
         add bx, 2
         mov word ptr es:[bx], ax
-L1e416:
+update_swapped:
         mov ax, word ptr [bp+4]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_5900
+        les bx, dword ptr DGROUP:huff_son_off
         add bx, ax
         mov word ptr es:[bx], di
         mov word ptr [bp+4], si
-L1e427:
+update_up:
         mov ax, word ptr [bp+4]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov word ptr [bp+4], ax
         or ax, ax
-        je L1e43f
-        jmp L1e364
-L1e43f:
+        je update_return
+        jmp update_node
+update_return:
         pop di
         pop si
         mov sp, bp
@@ -1115,32 +1115,32 @@ _encode_char proc near
         mov ax, word ptr [bp+4]
         add ax, 273h
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov word ptr [bp-2], ax
         xor di, di
-L1e464:
+encode_char_bit:
         shr si, 1
         test word ptr [bp-2], 1
-        je L1e471
+        je encode_char_up
         add si, 8000h
-L1e471:
+encode_char_up:
         inc di
         mov ax, word ptr [bp-2]
         shl ax, 1
-        les bx, dword ptr DGROUP:d_590e
+        les bx, dword ptr DGROUP:huff_prnt_off
         add bx, ax
         mov ax, word ptr es:[bx]
         mov word ptr [bp-2], ax
         cmp ax, 272h
-        jne L1e464
+        jne encode_char_bit
         push si
         push di
         call _huff_putcode
         add sp, 4
-        mov word ptr DGROUP:d_5916, si
-        mov word ptr DGROUP:d_5904, di
+        mov word ptr DGROUP:huff_code, si
+        mov word ptr DGROUP:huff_len, di
         push word ptr [bp+4]
         call _huffman_update
         add sp, 2
@@ -1162,12 +1162,12 @@ _encode_position proc near
         mov cl, 6
         shr ax, cl
         mov si, ax
-        mov al, byte ptr d_3646[si]
+        mov al, byte ptr lzh_p_code[si]
         mov ah, 0
         mov cl, 8
         shl ax, cl
         push ax
-        mov al, byte ptr d_3606[si]
+        mov al, byte ptr lzh_p_len[si]
         mov ah, 0
         push ax
         call _huff_putcode
@@ -1189,49 +1189,49 @@ _encode_position endp
 
 /* 0x1e4e7 */
 _encode_end proc near
-        cmp byte ptr DGROUP:d_3605, 0
-        je L1e4fc
-        mov ax, word ptr DGROUP:d_3603
+        cmp byte ptr DGROUP:lzh_putlen, 0
+        je encode_end_free
+        mov ax, word ptr DGROUP:lzh_putbuf
         mov cl, 8
         shr ax, cl
         push ax
         call _put_output_byte
         add sp, 2
-L1e4fc:
-        push word ptr DGROUP:d_58f6
-        push word ptr DGROUP:d_58f4
+encode_end_free:
+        push word ptr DGROUP:lzh_lson_seg
+        push word ptr DGROUP:lzh_lson_off
         call FAR PTR _dos_free_far
         add sp, 4
-        push word ptr DGROUP:d_58fa
-        push word ptr DGROUP:d_58f8
+        push word ptr DGROUP:lzh_rson_seg
+        push word ptr DGROUP:lzh_rson_off
         call FAR PTR _dos_free_far
         add sp, 4
-        push word ptr DGROUP:d_5908
-        push word ptr DGROUP:d_5906
+        push word ptr DGROUP:lzh_dad_seg
+        push word ptr DGROUP:lzh_dad_off
         call FAR PTR _dos_free_far
         add sp, 4
         ret
-L1e52d:
-        les bx, dword ptr DGROUP:d_5900
+decode_char:
+        les bx, dword ptr DGROUP:huff_son_off
         mov di, word ptr es:[bx+4e4h]
-        jmp short L1e54d
-c_1e538 db 0a1h, 2h, 59h
-c_1e53b db 8eh, 0c0h
-L1e53d:
+        jmp short decode_char_test
+decode_char_dead_seg db 0a1h, 2h, 59h
+decode_char_dead_es db 8eh, 0c0h
+decode_char_step:
         call _huff_get_bit
         mov bx, ax
         add bx, di
         shl bx, 1
-        add bx, word ptr DGROUP:d_5900
+        add bx, word ptr DGROUP:huff_son_off
         mov di, word ptr es:[bx]
-L1e54d:
+decode_char_test:
         cmp di, 273h
-        jb L1e53d
+        jb decode_char_step
         sub di, 273h
         push di
         call _huffman_update
         add sp, 2
-        jmp L1e849
+        jmp lzss_char
 _encode_end endp
 
 /* 0x1e561 */
@@ -1244,41 +1244,41 @@ _decode_position proc near
         push di
         call _huff_get_byte
         mov si, ax
-        mov al, byte ptr d_3686[si]
+        mov al, byte ptr lzh_d_code[si]
         mov ah, 0
         mov cl, 6
         shl ax, cl
         mov word ptr [bp-2], ax
-        mov al, byte ptr d_3786[si]
+        mov al, byte ptr lzh_d_len[si]
         mov ah, 0
         mov di, ax
         dec di
         dec di
-        jmp short L1e591
-L1e586:
+        jmp short position_bits_left
+position_bit:
         call _huff_get_bit
         mov dx, si
         shl dx, 1
         add dx, ax
         mov si, dx
-L1e591:
+position_bits_left:
         mov ax, di
         dec di
         or ax, ax
-        jne L1e586
+        jne position_bit
         mov ax, si
         and ax, 3fh
         push ax
         mov ax, word ptr [bp-2]
         pop dx
         or ax, dx
-        jmp short L1e5a6
-L1e5a6:
+        jmp short position_return
+position_return:
         pop di
         pop si
         mov sp, bp
         pop bp
-        jmp L1e89c
+        jmp lzss_position
 _decode_position endp
 
 /* 0x1e5ae */
@@ -1299,190 +1299,190 @@ _lzss_flush proc near
         mov si, word ptr DGROUP:_g_engine_stream+0ah
         mov ax, word ptr [bp-2]
         mov word ptr [bp-4], ax
-        cmp word ptr DGROUP:d_58fe, 0
-        je L1e5e1
-        jmp L1e69b
-L1e5e1:
-        cmp word ptr DGROUP:d_58d2, 0
-        jne L1e617
+        cmp word ptr DGROUP:enc_started, 0
+        je enc_begin
+        jmp enc_loop
+enc_begin:
+        cmp word ptr DGROUP:enc_waiting, 0
+        jne enc_fill
         call _huffman_start
         call _init_tree
-        mov word ptr DGROUP:d_58dc, 0
-        mov word ptr DGROUP:d_58da, 0fc4h
+        mov word ptr DGROUP:enc_s, 0
+        mov word ptr DGROUP:enc_r, 0fc4h
         push di
-        les di, dword ptr DGROUP:d_5912
-        add di, word ptr DGROUP:d_58d4
-        mov cx, word ptr DGROUP:d_58da
-        sub cx, word ptr DGROUP:d_58d4
+        les di, dword ptr DGROUP:lzss_ring_off
+        add di, word ptr DGROUP:enc_i
+        mov cx, word ptr DGROUP:enc_r
+        sub cx, word ptr DGROUP:enc_i
         mov al, 20h
         cld
         rep stosb
         pop di
-        mov word ptr DGROUP:d_58d8, 0
-L1e617:
-        mov word ptr DGROUP:d_58d2, 0
-        jmp short L1e63e
-L1e61f:
+        mov word ptr DGROUP:enc_len, 0
+enc_fill:
+        mov word ptr DGROUP:enc_waiting, 0
+        jmp short enc_fill_test
+enc_fill_loop:
         mov bx, word ptr [bp-4]
         mov al, byte ptr [bx+si]
-        les bx, dword ptr DGROUP:d_5912
-        add bx, word ptr DGROUP:d_58da
-        add bx, word ptr DGROUP:d_58d8
+        les bx, dword ptr DGROUP:lzss_ring_off
+        add bx, word ptr DGROUP:enc_r
+        add bx, word ptr DGROUP:enc_len
         mov byte ptr es:[bx], al
         inc word ptr [bp-4]
         and word ptr [bp-4], 7fh
-        inc word ptr DGROUP:d_58d8
-L1e63e:
-        cmp word ptr DGROUP:d_58d8, 3ch
-        jge L1e64a
+        inc word ptr DGROUP:enc_len
+enc_fill_test:
+        cmp word ptr DGROUP:enc_len, 3ch
+        jge enc_filled
         cmp word ptr [bp-4], di
-        jne L1e61f
-L1e64a:
+        jne enc_fill_loop
+enc_filled:
         cmp word ptr [bp-4], di
-        jne L1e66a
+        jne enc_insert_prefix
         cmp word ptr [bp+4], 0
-        jne L1e66a
-        mov word ptr DGROUP:d_58d2, 1
+        jne enc_insert_prefix
+        mov word ptr DGROUP:enc_waiting, 1
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bp-4]
         mov byte ptr [bx+1bh], al
         xor ax, ax
-        jmp L1e7ec
-L1e66a:
-        mov word ptr DGROUP:d_58d4, 1
-        jmp short L1e684
-L1e672:
-        mov ax, word ptr DGROUP:d_58da
-        sub ax, word ptr DGROUP:d_58d4
+        jmp enc_return
+enc_insert_prefix:
+        mov word ptr DGROUP:enc_i, 1
+        jmp short enc_insert_test
+enc_insert_loop:
+        mov ax, word ptr DGROUP:enc_r
+        sub ax, word ptr DGROUP:enc_i
         push ax
         call _insert_node
         add sp, 2
-        inc word ptr DGROUP:d_58d4
-L1e684:
-        cmp word ptr DGROUP:d_58d4, 3ch
-        jle L1e672
-        push word ptr DGROUP:d_58da
+        inc word ptr DGROUP:enc_i
+enc_insert_test:
+        cmp word ptr DGROUP:enc_i, 3ch
+        jle enc_insert_loop
+        push word ptr DGROUP:enc_r
         call _insert_node
         add sp, 2
-        mov word ptr DGROUP:d_58fe, 1
-L1e69b:
-        cmp word ptr DGROUP:d_58d2, 0
-        jne L1e6f7
-        mov ax, word ptr DGROUP:d_58f2
-        cmp ax, word ptr DGROUP:d_58d8
-        jle L1e6b1
-        mov ax, word ptr DGROUP:d_58d8
-        mov word ptr DGROUP:d_58f2, ax
-L1e6b1:
-        cmp word ptr DGROUP:d_58f2, 2
-        jg L1e6d4
-        mov word ptr DGROUP:d_58f2, 1
-        les bx, dword ptr DGROUP:d_5912
-        add bx, word ptr DGROUP:d_58da
+        mov word ptr DGROUP:enc_started, 1
+enc_loop:
+        cmp word ptr DGROUP:enc_waiting, 0
+        jne enc_shift
+        mov ax, word ptr DGROUP:enc_match_length
+        cmp ax, word ptr DGROUP:enc_len
+        jle enc_match_clamped
+        mov ax, word ptr DGROUP:enc_len
+        mov word ptr DGROUP:enc_match_length, ax
+enc_match_clamped:
+        cmp word ptr DGROUP:enc_match_length, 2
+        jg enc_emit_match
+        mov word ptr DGROUP:enc_match_length, 1
+        les bx, dword ptr DGROUP:lzss_ring_off
+        add bx, word ptr DGROUP:enc_r
         mov al, byte ptr es:[bx]
         mov ah, 0
         push ax
         call _encode_char
         add sp, 2
-        jmp short L1e6eb
-L1e6d4:
-        mov ax, word ptr DGROUP:d_58f2
+        jmp short enc_emitted
+enc_emit_match:
+        mov ax, word ptr DGROUP:enc_match_length
         add ax, 0fdh
         push ax
         call _encode_char
         add sp, 2
-        push word ptr DGROUP:d_58fc
+        push word ptr DGROUP:enc_match_position
         call _encode_position
         add sp, 2
-L1e6eb:
-        mov ax, word ptr DGROUP:d_58f2
-        mov word ptr DGROUP:d_58de, ax
-        mov word ptr DGROUP:d_58d4, 0
-L1e6f7:
-        mov word ptr DGROUP:d_58d2, 0
-        jmp short L1e765
-L1e6ff:
+enc_emitted:
+        mov ax, word ptr DGROUP:enc_match_length
+        mov word ptr DGROUP:enc_last_match_length, ax
+        mov word ptr DGROUP:enc_i, 0
+enc_shift:
+        mov word ptr DGROUP:enc_waiting, 0
+        jmp short enc_shift_test
+enc_shift_loop:
         mov bx, word ptr [bp-4]
         mov al, byte ptr [bx+si]
         mov ah, 0
-        mov word ptr DGROUP:d_58d6, ax
+        mov word ptr DGROUP:enc_c, ax
         inc word ptr [bp-4]
         and word ptr [bp-4], 7fh
-        push word ptr DGROUP:d_58dc
+        push word ptr DGROUP:enc_s
         call _delete_node
         add sp, 2
-        les bx, dword ptr DGROUP:d_5912
-        add bx, word ptr DGROUP:d_58dc
-        mov al, byte ptr DGROUP:d_58d6
+        les bx, dword ptr DGROUP:lzss_ring_off
+        add bx, word ptr DGROUP:enc_s
+        mov al, byte ptr DGROUP:enc_c
         mov byte ptr es:[bx], al
-        cmp word ptr DGROUP:d_58dc, 3bh
-        jge L1e743
-        mov bx, word ptr DGROUP:d_58dc
-        mov es, word ptr DGROUP:d_5914
-        add bx, word ptr DGROUP:d_5912
-        mov al, byte ptr DGROUP:d_58d6
+        cmp word ptr DGROUP:enc_s, 3bh
+        jge enc_shift_unmirrored
+        mov bx, word ptr DGROUP:enc_s
+        mov es, word ptr DGROUP:lzss_ring_seg
+        add bx, word ptr DGROUP:lzss_ring_off
+        mov al, byte ptr DGROUP:enc_c
         mov byte ptr es:[bx+1000h], al
-L1e743:
-        inc word ptr DGROUP:d_58dc
-        and word ptr DGROUP:d_58dc, 0fffh
-        inc word ptr DGROUP:d_58da
-        and word ptr DGROUP:d_58da, 0fffh
-        push word ptr DGROUP:d_58da
+enc_shift_unmirrored:
+        inc word ptr DGROUP:enc_s
+        and word ptr DGROUP:enc_s, 0fffh
+        inc word ptr DGROUP:enc_r
+        and word ptr DGROUP:enc_r, 0fffh
+        push word ptr DGROUP:enc_r
         call _insert_node
         add sp, 2
-        inc word ptr DGROUP:d_58d4
-L1e765:
-        mov ax, word ptr DGROUP:d_58d4
-        cmp ax, word ptr DGROUP:d_58de
-        jge L1e775
+        inc word ptr DGROUP:enc_i
+enc_shift_test:
+        mov ax, word ptr DGROUP:enc_i
+        cmp ax, word ptr DGROUP:enc_last_match_length
+        jge enc_shifted
         cmp word ptr [bp-4], di
-        je L1e775
-        jmp short L1e6ff
-L1e775:
+        je enc_shifted
+        jmp short enc_shift_loop
+enc_shifted:
         cmp word ptr [bp-4], di
-        jne L1e7c4
+        jne enc_tail_test
         cmp word ptr [bp+4], 0
-        jne L1e7c4
-        mov word ptr DGROUP:d_58d2, 1
+        jne enc_tail_test
+        mov word ptr DGROUP:enc_waiting, 1
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bp-4]
         mov byte ptr [bx+1bh], al
         xor ax, ax
-        jmp short L1e7ec
-c_1e794 db 0ebh, 2eh
-L1e796:
-        push word ptr DGROUP:d_58dc
+        jmp short enc_return
+enc_dead_jmp db 0ebh, 2eh
+enc_tail_loop:
+        push word ptr DGROUP:enc_s
         call _delete_node
         add sp, 2
-        mov ax, word ptr DGROUP:d_58dc
+        mov ax, word ptr DGROUP:enc_s
         inc ax
         and ax, 0fffh
-        mov word ptr DGROUP:d_58dc, ax
-        mov ax, word ptr DGROUP:d_58da
+        mov word ptr DGROUP:enc_s, ax
+        mov ax, word ptr DGROUP:enc_r
         inc ax
         and ax, 0fffh
-        mov word ptr DGROUP:d_58da, ax
-        dec word ptr DGROUP:d_58d8
-        je L1e7c4
-        push word ptr DGROUP:d_58da
+        mov word ptr DGROUP:enc_r, ax
+        dec word ptr DGROUP:enc_len
+        je enc_tail_test
+        push word ptr DGROUP:enc_r
         call _insert_node
         add sp, 2
-L1e7c4:
-        mov ax, word ptr DGROUP:d_58d4
-        inc word ptr DGROUP:d_58d4
-        cmp ax, word ptr DGROUP:d_58de
-        jl L1e796
-        cmp word ptr DGROUP:d_58d8, 0
-        jle L1e7db
-        jmp L1e69b
-L1e7db:
+enc_tail_test:
+        mov ax, word ptr DGROUP:enc_i
+        inc word ptr DGROUP:enc_i
+        cmp ax, word ptr DGROUP:enc_last_match_length
+        jl enc_tail_loop
+        cmp word ptr DGROUP:enc_len, 0
+        jle enc_done
+        jmp enc_loop
+enc_done:
         call _encode_end
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov al, byte ptr [bp-4]
         mov byte ptr [bx+1bh], al
         xor ax, ax
-        jmp short L1e7ec
-L1e7ec:
+        jmp short enc_return
+enc_return:
         pop di
         pop si
         mov sp, bp
@@ -1494,78 +1494,78 @@ _lzss_flush endp
 _decompress_lzss proc near
         push si
         push di
-        cmp word ptr DGROUP:d_5918, 0
-        je L1e7fe
-        jmp L1e91d
-L1e7fe:
-        mov word ptr DGROUP:d_58e0, 0
+        cmp word ptr DGROUP:lzss_ready, 0
+        je lzss_start
+        jmp lzss_more
+lzss_start:
+        mov word ptr DGROUP:match_interrupted, 0
         call _huffman_start
-        les di, dword ptr DGROUP:d_5912
+        les di, dword ptr DGROUP:lzss_ring_off
         mov cx, 0fc4h
         mov al, 20h
         cld
         rep stosb
-        mov word ptr DGROUP:d_58e8, 0fc4h
-        mov word ptr DGROUP:d_58ec, 0
-        mov word ptr DGROUP:d_58ea, 0
+        mov word ptr DGROUP:lzss_ring_pos, 0fc4h
+        mov word ptr DGROUP:lzss_count_hi, 0
+        mov word ptr DGROUP:lzss_count_lo, 0
         mov bx, word ptr DGROUP:_g_engine_stream+2h
         mov ax, word ptr [bx+14h]
         mov dx, word ptr [bx+12h]
-        mov word ptr DGROUP:d_58f0, ax
-        mov word ptr DGROUP:d_58ee, dx
-        mov word ptr DGROUP:d_5918, 1
-        jmp L1e91d
-L1e83f:
-        cmp word ptr DGROUP:d_58e0, 0
-        jne L1e882
-        jmp L1e52d
-L1e849:
+        mov word ptr DGROUP:lzss_size_hi, ax
+        mov word ptr DGROUP:lzss_size_lo, dx
+        mov word ptr DGROUP:lzss_ready, 1
+        jmp lzss_more
+lzss_next:
+        cmp word ptr DGROUP:match_interrupted, 0
+        jne lzss_not_literal
+        jmp decode_char
+lzss_char:
         cmp di, 100h
-        jge L1e882
+        jge lzss_not_literal
         push di
         call _emit_byte
         add sp, 2
         mov si, ax
-        les bx, dword ptr DGROUP:d_5912
-        add bx, word ptr DGROUP:d_58e8
+        les bx, dword ptr DGROUP:lzss_ring_off
+        add bx, word ptr DGROUP:lzss_ring_pos
         mov ax, di
         mov byte ptr es:[bx], al
-        inc word ptr DGROUP:d_58e8
-        and word ptr DGROUP:d_58e8, 0fffh
-        add word ptr DGROUP:d_58ea, 1
-        adc word ptr DGROUP:d_58ec, 0
+        inc word ptr DGROUP:lzss_ring_pos
+        and word ptr DGROUP:lzss_ring_pos, 0fffh
+        add word ptr DGROUP:lzss_count_lo, 1
+        adc word ptr DGROUP:lzss_count_hi, 0
         or si, si
-        jne L1e882
+        jne lzss_not_literal
         xor ax, ax
-        jmp L1e939
-L1e882:
+        jmp lzss_return
+lzss_not_literal:
         cmp di, 100h
-        jge L1e892
-        cmp word ptr DGROUP:d_58e0, 0
-        jne L1e892
-        jmp L1e91d
-L1e892:
-        cmp word ptr DGROUP:d_58e0, 0
-        jne L1e8b9
+        jge lzss_match
+        cmp word ptr DGROUP:match_interrupted, 0
+        jne lzss_match
+        jmp lzss_more
+lzss_match:
+        cmp word ptr DGROUP:match_interrupted, 0
+        jne lzss_match_resume
         jmp _decode_position
-L1e89c:
-        mov dx, word ptr DGROUP:d_58e8
+lzss_position:
+        mov dx, word ptr DGROUP:lzss_ring_pos
         sub dx, ax
         dec dx
         and dx, 0fffh
-        mov word ptr DGROUP:d_58e2, dx
+        mov word ptr DGROUP:match_position, dx
         mov ax, di
         add ax, 0ff03h
-        mov word ptr DGROUP:d_58e4, ax
-        mov word ptr DGROUP:d_58e6, 0
-L1e8b9:
-        mov word ptr DGROUP:d_58e0, 0
-        jmp short L1e914
-L1e8c1:
-        mov ax, word ptr DGROUP:d_58e2
-        add ax, word ptr DGROUP:d_58e6
+        mov word ptr DGROUP:match_length, ax
+        mov word ptr DGROUP:match_progress, 0
+lzss_match_resume:
+        mov word ptr DGROUP:match_interrupted, 0
+        jmp short lzss_copy_loop
+lzss_copy:
+        mov ax, word ptr DGROUP:match_position
+        add ax, word ptr DGROUP:match_progress
         and ax, 0fffh
-        les bx, dword ptr DGROUP:d_5912
+        les bx, dword ptr DGROUP:lzss_ring_off
         add bx, ax
         mov al, byte ptr es:[bx]
         mov ah, 0
@@ -1574,38 +1574,38 @@ L1e8c1:
         call _emit_byte
         add sp, 2
         mov si, ax
-        les bx, dword ptr DGROUP:d_5912
-        add bx, word ptr DGROUP:d_58e8
+        les bx, dword ptr DGROUP:lzss_ring_off
+        add bx, word ptr DGROUP:lzss_ring_pos
         mov ax, di
         mov byte ptr es:[bx], al
-        inc word ptr DGROUP:d_58e8
-        and word ptr DGROUP:d_58e8, 0fffh
-        add word ptr DGROUP:d_58ea, 1
-        adc word ptr DGROUP:d_58ec, 0
-        inc word ptr DGROUP:d_58e6
+        inc word ptr DGROUP:lzss_ring_pos
+        and word ptr DGROUP:lzss_ring_pos, 0fffh
+        add word ptr DGROUP:lzss_count_lo, 1
+        adc word ptr DGROUP:lzss_count_hi, 0
+        inc word ptr DGROUP:match_progress
         or si, si
-        jne L1e914
-        mov word ptr DGROUP:d_58e0, 1
+        jne lzss_copy_loop
+        mov word ptr DGROUP:match_interrupted, 1
         xor ax, ax
-        jmp short L1e939
-L1e914:
-        mov ax, word ptr DGROUP:d_58e6
-        cmp ax, word ptr DGROUP:d_58e4
-        jl L1e8c1
-L1e91d:
-        mov ax, word ptr DGROUP:d_58ec
-        cmp ax, word ptr DGROUP:d_58f0
-        jge L1e929
-        jmp L1e83f
-L1e929:
-        jne L1e937
-        mov ax, word ptr DGROUP:d_58ea
-        cmp ax, word ptr DGROUP:d_58ee
-        jae L1e937
-        jmp L1e83f
-L1e937:
+        jmp short lzss_return
+lzss_copy_loop:
+        mov ax, word ptr DGROUP:match_progress
+        cmp ax, word ptr DGROUP:match_length
+        jl lzss_copy
+lzss_more:
+        mov ax, word ptr DGROUP:lzss_count_hi
+        cmp ax, word ptr DGROUP:lzss_size_hi
+        jge lzss_more_low
+        jmp lzss_next
+lzss_more_low:
+        jne lzss_done
+        mov ax, word ptr DGROUP:lzss_count_lo
+        cmp ax, word ptr DGROUP:lzss_size_lo
+        jae lzss_done
+        jmp lzss_next
+lzss_done:
         xor ax, ax
-L1e939:
+lzss_return:
         pop di
         pop si
         ret

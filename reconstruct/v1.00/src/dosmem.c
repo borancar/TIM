@@ -53,10 +53,10 @@ _dos_alloc_bytes proc far
         mov ax, word ptr [bp+8]
         mov bx, word ptr [bp+6]
         cmp ax, bx
-        jne L21acf
+        jne alloc_to_paras
         cmp ax, 0ffffh
-        je L21b18
-L21acf:
+        je alloc_ask_free
+alloc_to_paras:
         mov dx, bx
         shr ax, 1
         rcr bx, 1
@@ -67,20 +67,20 @@ L21acf:
         shr ax, 1
         rcr bx, 1
         and dx, 0fh
-        je L21ae7
+        je alloc_rounded
         inc bx
-L21ae7:
+alloc_rounded:
         mov ah, 48h
         int 21h
-        jae L21af3
+        jae alloc_got
         xor ax, ax
         xor dx, dx
-        jmp short L21b32
-L21af3:
+        jmp short alloc_return
+alloc_got:
         mov dx, ax
         mov ax, word ptr [bp+0ch]
         and ax, 1
-        je L21b32
+        je alloc_return
         push dx
         mov ax, word ptr [bp+8]
         push ax
@@ -94,8 +94,8 @@ L21af3:
         add sp, 0ah
         pop dx
         xor ax, ax
-        jmp short L21b32
-L21b18:
+        jmp short alloc_return
+alloc_ask_free:
         mov ah, 48h
         int 21h
         mov ax, bx
@@ -109,7 +109,7 @@ L21b18:
         shl ax, 1
         rcl bx, 1
         mov dx, bx
-L21b32:
+alloc_return:
         pop bp
         retf
 _dos_alloc_bytes endp

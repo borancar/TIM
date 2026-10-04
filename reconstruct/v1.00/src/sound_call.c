@@ -37,11 +37,11 @@ extrn _g_sound_bank:byte
 SOUND_CALL_TEXT segment byte public 'CODE'
 assume cs:SOUND_CALL_TEXT, ds:DGROUP
 public _set_sound_callback, _sound_callback, _sound_callback_quiet
-c_29286 label byte
+callback_off label byte
         db 0h, 0h
-c_29288 label byte
+callback_seg label byte
         db 0h, 0h
-c_2928a label byte
+callback_answer label byte
         db 0h, 0h
 
 /* 0x2928c */
@@ -50,9 +50,9 @@ _set_sound_callback proc far
         mov bp, sp
         push ax
         mov ax, word ptr [bp+6]
-        mov word ptr cs:c_29286, ax
+        mov word ptr cs:callback_off, ax
         mov ax, word ptr [bp+8]
-        mov word ptr cs:c_29288, ax
+        mov word ptr cs:callback_seg, ax
         pop ax
         pop bp
         retf
@@ -75,12 +75,12 @@ _sound_callback proc far
         mov ax, DGROUP
         mov ds, ax
         cmp word ptr DGROUP:_g_sound_bank+28h, 0
-        je L292c5
+        je callback_none
         mov si, word ptr [bp+8]
         mov ax, word ptr [bp+6]
-        call dword ptr cs:c_29286
-L292c5:
-        mov word ptr cs:c_2928a, ax
+        call dword ptr cs:callback_off
+callback_none:
+        mov word ptr cs:callback_answer, ax
         pop di
         pop si
         pop bp
@@ -89,7 +89,7 @@ L292c5:
         pop cx
         pop ax
         popf
-        mov ax, word ptr cs:c_2928a
+        mov ax, word ptr cs:callback_answer
         pop es
         pop ds
         pop bp
@@ -103,11 +103,11 @@ _sound_callback_quiet proc far
         push si
         push di
         cmp word ptr DGROUP:_g_sound_bank+28h, 0
-        je L292f0
+        je quiet_none
         mov si, word ptr [bp+8]
         mov ax, word ptr [bp+6]
-        call dword ptr cs:c_29286
-L292f0:
+        call dword ptr cs:callback_off
+quiet_none:
         pop di
         pop si
         pop bp

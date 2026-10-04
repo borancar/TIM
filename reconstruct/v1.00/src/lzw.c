@@ -36,13 +36,13 @@
 asm {
 _DATA segment word public 'DATA'
         db 0h, 1h, 3h, 7h, 0fh, 1fh, 3fh, 7fh, 0ffh, 0h
-d_35bc label byte
+lzw_code_buf label byte
         db 0ch, 0ch, 0ch, 0ch, 0ch, 0ch, 0ch, 0ch, 0ch, 0ch, 0ch, 0ch
-d_35c8 label byte
+lzw_rmask label byte
         db 0h, 1h, 3h, 7h, 0fh, 1fh, 3fh, 7fh, 0ffh
-d_35d1 label byte
+lzw_resume_src label byte
         db 0h, 0h, 0h
-d_35d4 label byte
+rle_spill_at label byte
         db 0h, 0h
 _DATA ends
 
@@ -53,7 +53,7 @@ assume cs:LZW_TEXT, ds:DGROUP
 extrn _emit_byte:near
 extrn _read_input_block:near
 public _decompress_lzw, _next_lzw_code, _rle_from_memory
-L1ca46:
+lzw_first_code:
         mov byte ptr DGROUP:_g_engine_stream+26h, 0
         mov bp, es
         call _next_lzw_code
@@ -63,8 +63,8 @@ L1ca46:
         call _emit_byte
         add sp, 2
         mov es, bp
-        jmp short L1caa3
-c_1ca61 db 90h
+        jmp short lzw_next_code
+lzw_pad_90 db 90h
 
 /* 0x1ca62 */
 _decompress_lzw proc near
@@ -75,33 +75,33 @@ _decompress_lzw proc near
         add ax, 372h
         mov es, ax
         cmp byte ptr DGROUP:_g_engine_stream+1ah, 0
-        je L1ca9c
+        je lzw_fresh
         mov cx, word ptr DGROUP:_g_engine_stream+8h
         inc cx
         mov bp, es
         les di, dword ptr DGROUP:_g_engine_stream+0ch
         mov al, byte ptr DGROUP:_g_engine_resource_flags
-        mov si, word ptr DGROUP:d_35d1
+        mov si, word ptr DGROUP:lzw_resume_src
         mov byte ptr DGROUP:_g_engine_stream+1ah, 0
         mov dx, ds
         mov ds, bp
         mov bx, 2
         test al, 40h
-        je L1ca99
-        jmp L1cba0
-L1ca99:
-        jmp L1cbf3
-L1ca9c:
+        je lzw_resume_skip
+        jmp lzw_copy_next
+lzw_resume_skip:
+        jmp lzw_skip_next
+lzw_fresh:
         cmp byte ptr DGROUP:_g_engine_stream+26h, 0
-        jne L1ca46
-L1caa3:
+        jne lzw_first_code
+lzw_next_code:
         mov bp, es
         call _next_lzw_code
         mov es, bp
         cmp ax, 0
-        jl L1cad4
+        jl lzw_end
         cmp ax, 100h
-        jne L1cad8
+        jne lzw_code
         mov bp, es
         les di, dword ptr DGROUP:_g_engine_stream+4h
         mov ax, di
@@ -114,96 +114,96 @@ L1caa3:
         call _next_lzw_code
         mov es, bp
         cmp ax, 0
-        jge L1cad8
-L1cad4:
+        jge lzw_code
+lzw_end:
         pop di
         pop si
         pop bp
         ret
-L1cad8:
+lzw_code:
         sub di, di
         mov si, ax
         mov word ptr DGROUP:_g_engine_stream+28h, ax
         cmp ax, word ptr DGROUP:_g_engine_stream+18h
-        jl L1caed
+        jl lzw_unwind
         mov ax, word ptr DGROUP:_g_engine_stream+24h
         stosb
         mov si, word ptr DGROUP:_g_engine_stream+1eh
-L1caed:
+lzw_unwind:
         mov dx, ds
         mov ax, word ptr DGROUP:_g_engine_stream+6h
         mov ds, ax
         mov cx, 100h
         mov bx, 2720h
-L1cafa:
+lzw_chain:
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
         cmp si, cx
-        jl L1cb75
+        jl lzw_chain_end
         mov al, byte ptr [bx+si]
         stosb
         shl si, 1
         mov si, word ptr [si]
-        jmp short L1cafa
-L1cb75:
+        jmp short lzw_chain
+lzw_chain_end:
         mov al, byte ptr [bx+si]
         stosb
         mov ds, dx
@@ -220,77 +220,77 @@ L1cb75:
         mov ds, bp
         mov bx, 2
         test al, 40h
-        je L1cbee
-L1cb9b:
+        je lzw_skip
+lzw_copy:
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
-L1cba0:
+lzw_copy_next:
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
-        stosb
-        sub si, bx
-        jl L1cc22
-        lodsb
-        dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
         stosb
         sub si, bx
-        jl L1cc22
-        jmp short L1cb9b
-L1cbee:
+        jl lzw_string_done
         lodsb
         dec cx
-        je L1cbf9
+        je lzw_wanted_met
+        stosb
+        sub si, bx
+        jl lzw_string_done
+        jmp short lzw_copy
+lzw_skip:
+        lodsb
+        dec cx
+        je lzw_wanted_met
         inc di
-L1cbf3:
+lzw_skip_next:
         sub si, bx
-        jl L1cc22
-        jmp short L1cbee
-L1cbf9:
+        jl lzw_string_done
+        jmp short lzw_skip
+lzw_wanted_met:
         mov ds, dx
         mov word ptr DGROUP:_g_engine_stream+0ch, di
-        mov word ptr DGROUP:d_35d1, si
+        mov word ptr DGROUP:lzw_resume_src, si
         mov si, word ptr DGROUP:_g_engine_stream+2h
         mov bl, byte ptr [si+1ah]
         inc word ptr [si+1ah]
@@ -305,7 +305,7 @@ L1cbf9:
         pop si
         pop bp
         ret
-L1cc22:
+lzw_string_done:
         mov ax, ds
         mov es, ax
         mov ds, dx
@@ -314,7 +314,7 @@ L1cc22:
         mov word ptr DGROUP:_g_engine_stream+0ch, di
         mov ax, word ptr DGROUP:_g_engine_stream+18h
         cmp ax, 1000h
-        jge L1cc5c
+        jge lzw_table_full
         mov di, ax
         shl di, 1
         mov ax, word ptr DGROUP:_g_engine_stream+1eh
@@ -330,24 +330,24 @@ L1cc22:
         mov ax, word ptr DGROUP:_g_engine_stream+24h
         stosb
         mov es, bp
-L1cc5c:
+lzw_table_full:
         mov ax, word ptr DGROUP:_g_engine_stream+28h
         mov word ptr DGROUP:_g_engine_stream+1eh, ax
-        jmp L1caa3
+        jmp lzw_next_code
 _decompress_lzw endp
 
 /* 0x1cc65 */
 _next_lzw_code proc near
         mov ax, word ptr DGROUP:_g_engine_stream+18h
         cmp ax, word ptr DGROUP:_g_engine_stream+2eh
-        jg L1ccc8
+        jg code_widen
         cmp word ptr DGROUP:_g_engine_stream+1ch, 0
-        jne L1cce9
+        jne code_clear
         mov ax, word ptr DGROUP:_g_engine_stream+2ah
         cmp ax, word ptr DGROUP:_g_engine_stream+2ch
-        jge L1ccfb
-L1cc7e:
-        mov si, offset DGROUP:d_35bc
+        jge code_refill
+code_extract:
+        mov si, offset DGROUP:lzw_code_buf
         mov bx, word ptr DGROUP:_g_engine_stream+16h
         mov ch, al
         mov dx, ax
@@ -366,42 +366,42 @@ L1cc7e:
         neg ch
         sub bl, ch
         cmp bl, 8
-        jl L1ccb9
+        jl code_last_bits
         lodsb
         mov cl, ch
         shl ax, cl
         or dx, ax
         add ch, 8
         sub bl, 8
-L1ccb9:
+code_last_bits:
         sub ax, ax
-        mov al, byte ptr d_35c8[bx]
+        mov al, byte ptr lzw_rmask[bx]
         and al, byte ptr [si]
         mov cl, ch
         shl ax, cl
         or ax, dx
         ret
-L1ccc8:
+code_widen:
         mov cx, word ptr DGROUP:_g_engine_stream+16h
         inc cx
         mov word ptr DGROUP:_g_engine_stream+16h, cx
         mov ax, 1000h
         cmp cl, 0ch
-        je L1ccdf
+        je code_set_max
         mov ax, 1
         shl ax, cl
         dec ax
-L1ccdf:
+code_set_max:
         mov word ptr DGROUP:_g_engine_stream+2eh, ax
         cmp word ptr DGROUP:_g_engine_stream+1ch, 0
-        je L1ccfb
-L1cce9:
+        je code_refill
+code_clear:
         mov ax, 9
         mov word ptr DGROUP:_g_engine_stream+16h, ax
         mov ax, 1ffh
         mov word ptr DGROUP:_g_engine_stream+2eh, ax
         mov word ptr DGROUP:_g_engine_stream+1ch, 0
-L1ccfb:
+code_refill:
         mov si, word ptr DGROUP:_g_engine_stream+16h
         push si
         mov ax, 35bch
@@ -410,7 +410,7 @@ L1ccfb:
         add sp, 4
         sub bx, bx
         cmp ax, bx
-        jle L1cd25
+        jle code_eof
         mov word ptr DGROUP:_g_engine_stream+2ah, bx
         shl ax, 1
         shl ax, 1
@@ -419,8 +419,8 @@ L1ccfb:
         sub ax, si
         mov word ptr DGROUP:_g_engine_stream+2ch, ax
         mov ax, bx
-        jmp L1cc7e
-L1cd25:
+        jmp code_extract
+code_eof:
         mov word ptr DGROUP:_g_engine_stream+2ch, ax
         mov ax, 0ffffh
         ret
@@ -437,80 +437,80 @@ _rle_from_memory proc near
         mov cl, byte ptr [si+1ah]
         mov ax, word ptr DGROUP:_g_engine_stream+0ah
         add ax, cx
-        mov word ptr DGROUP:d_35d4, ax
+        mov word ptr DGROUP:rle_spill_at, ax
         mov ax, word ptr [si+0eh]
         mov dx, word ptr [si+10h]
         sub ax, word ptr [si+0ah]
         sbb dx, word ptr [si+0ch]
         mov bp, 0ffffh
-        jne L1cd55
+        jne rle_start
         mov bp, ax
-L1cd55:
+rle_start:
         les di, dword ptr DGROUP:_g_engine_stream+0ch
         mov dx, word ptr DGROUP:_g_engine_stream+8h
         mov al, byte ptr DGROUP:_g_engine_resource_flags
         lds si, dword ptr DGROUP:_g_engine_stream+10h
         test al, 40h
-        je L1cdb5
-L1cd68:
+        je rle_skip
+rle_copy:
         sub cx, cx
         cmp bx, bp
-        je L1cdb0
+        je rle_input_done
         lodsb
         shl al, 1
-        jae L1cd93
+        jae rle_literal
         shr al, 1
         mov cl, al
         lodsb
         add bx, 2
         sub dx, cx
-        jb L1cdcc
+        jb rle_fill_spill
         mov ah, al
         test di, 1
-        je L1cd89
+        je rle_fill_words
         stosb
         dec cx
-L1cd89:
+rle_fill_words:
         shr cx, 1
         rep stosw
         rcl cx, 1
         rep stosb
-        jmp short L1cd68
-L1cd93:
+        jmp short rle_copy
+rle_literal:
         shr al, 1
         mov cl, al
         add bx, cx
         inc bx
         sub dx, cx
-        jb L1ce09
+        jb rle_literal_spill
         test di, 1
-        je L1cda6
+        je rle_literal_words
         movsb
         dec cx
-L1cda6:
+rle_literal_words:
         shr cx, 1
         rep movsw
         rcl cx, 1
         rep movsb
-        jmp short L1cd68
-L1cdb0:
+        jmp short rle_copy
+rle_input_done:
         mov bp, cx
-        jmp short L1cde0
-c_1cdb4 db 90h
-L1cdb5:
+        jmp short rle_return
+rle_pad_90 db 90h
+rle_skip:
         sub cx, cx
         cmp bx, bp
-        je L1cdb0
+        je rle_input_done
         lodsb
         shl al, 1
-        jae L1cdfc
+        jae rle_skip_literal
         shr al, 1
         mov cl, al
         lodsb
         add bx, 2
         sub dx, cx
-        jae L1cdb5
-L1cdcc:
+        jae rle_skip
+rle_fill_spill:
         add dx, cx
         mov bp, ss
         mov es, bp
@@ -518,7 +518,7 @@ L1cdcc:
         mov di, word ptr ss:[35d4h]
         mov bp, cx
         rep stosb
-L1cde0:
+rle_return:
         mov ax, ss
         mov ds, ax
         mov si, word ptr DGROUP:_g_engine_stream+2h
@@ -531,15 +531,15 @@ L1cde0:
         pop si
         pop bp
         ret
-L1cdfc:
+rle_skip_literal:
         shr al, 1
         mov cl, al
         add bx, cx
         inc bx
         add si, cx
         sub dx, cx
-        jae L1cdb5
-L1ce09:
+        jae rle_skip
+rle_literal_spill:
         add dx, cx
         mov bp, ss
         mov es, bp
@@ -547,7 +547,7 @@ L1ce09:
         mov di, word ptr ss:[35d4h]
         mov bp, cx
         rep movsb
-        jmp short L1cde0
+        jmp short rle_return
 _rle_from_memory endp
 LZW_TEXT ends
 }
