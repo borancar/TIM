@@ -1,7 +1,7 @@
 # Working on this reconstruction
 
 The Incredible Machine (Dynamix / Sierra, 1993), reverse engineered from
-`incredible-machine/TIM.EXE` and reconstructed as C.
+`TIM.EXE` and reconstructed as C.
 
 Two artefacts check each other: the **emulator** running the original binary is
 the *reference* that defines what "correct" means, and the **C port** is the
@@ -11,20 +11,19 @@ right on screen.
 ## The goal: one source, two compilers
 
 **Both versions are built, each from a tree of its own** (since 2026-10-04):
-`reconstruct/v1.00` is TIM.EXE as The Incredible Machine ships it, in
-`incredible-machine/`, and `reconstruct/v1.11` as The Even More Incredible
-Machine ships it, in `even-more-incredible-machine/` (both untracked; supply
-your own). The two trees are independent - each has its own sources,
-headers, host code, Makefile, README and `vendor/` (ymfm), and a fix that
-applies to both is made in both - and share only what proves them: `tools/`,
-`reconstruct/tests` and `solutions/`. Each tree builds and runs on its own,
-so it can be split out (`git subtree split --prefix reconstruct/v1.11`);
-its `make test` runs the checks that need this repository only when it is
-here, and says so when it skips them. v1.11's `get-game.sh` makes its
-`game/` from GOG's installer, and a tree's `game/` is the game directory
-the tools use when it exists. **Every
-tool works on one version, `TIM_VERSION`, 1.11 unless it says 1.00**
-(`tools/version.py`): its tree, its game directory, and its outputs in
+`reconstruct/v1.00` is TIM.EXE as The Incredible Machine ships it and
+`reconstruct/v1.11` as The Even More Incredible Machine ships it, each with
+the game's files in its `game/` (untracked; supply your own - v1.11's
+`get-game.sh` extracts it from GOG's installer). `tim` and `devtim` run the
+game in the `game/` beside them, else in the directory they start in. The two
+trees are independent - each has its own sources, headers, host code,
+Makefile, README and `vendor/` (ymfm), and a fix that applies to both is made
+in both - and share only what proves them: `tools/`, `reconstruct/tests` and
+`solutions/`. Each builds and runs on its own, so it can be split out (`git
+subtree split --prefix reconstruct/v1.11`); its `make test` runs the checks
+that need this repository only when it is here, and says so when it skips
+them. **Every tool works on one version, `TIM_VERSION`, 1.11 unless it says
+1.00** (`tools/version.py`): its tree, its `game/`, and its outputs in
 `out/v<version>/`. `tools/unrnc.py` recovers 1.11's image and
 `tools/unlzexe.py` 1.00's; `docs/v1.11.md` holds what is known about 1.11.
 `tools/link.py` links each into its program, every byte and relocation -

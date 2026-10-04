@@ -41,9 +41,11 @@ the installer's `app/`, without the DOSBox GOG bundles:
 
 ## Running
 
-From the game's directory, as DOS ran it:
+    ./tim
 
-    cd game && ../tim
+It runs the game in `game/` beside itself when there is one, and otherwise
+in the directory it is started from, as DOS ran a game from its own
+directory - so `cd game && ../tim` works too.
 
 ## Layout
 

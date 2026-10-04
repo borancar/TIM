@@ -260,7 +260,7 @@ static const uint8_t CRTC_MODE12[25] = {
     0xFF
 };
 
-static char     game_dir[PATH_MAX] = "incredible-machine";
+static char     game_dir[PATH_MAX];      /* empty: not chosen (io_set_game_dir) */
 
 /*
  * OURS: what DOS's loader and Borland's startup leave behind besides the
@@ -276,7 +276,30 @@ void io_start_program(void)
      * A DOS game is started in its own directory, and opens its files by name
      * with the C library - so the host process starts in the game directory
      * too. Made absolute first: `dos_resolve` builds every path from it.
+     *
+     * **Which directory**, unless the developer build was told: a `game/`
+     * beside the executable first - the tree's own, where its README puts
+     * the game's files - and otherwise wherever it was started, as DOS ran a
+     * game from its own directory.
      */
+    if (game_dir[0] == 0) {
+        char exe[PATH_MAX];
+        ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
+        struct stat st;
+
+        snprintf(game_dir, sizeof game_dir, ".");
+        if (n > 0) {
+            char *slash;
+
+            exe[n] = 0;
+            slash = strrchr(exe, '/');
+            if (slash != NULL) {
+                snprintf(slash + 1, sizeof exe - (size_t)(slash + 1 - exe), "game");
+                if (stat(exe, &st) == 0 && S_ISDIR(st.st_mode))
+                    snprintf(game_dir, sizeof game_dir, "%s", exe);
+            }
+        }
+    }
     {
         char real[PATH_MAX];
 

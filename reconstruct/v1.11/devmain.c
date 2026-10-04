@@ -266,7 +266,7 @@ int main(int argc, char **argv)
         /* The same start-up main.c does. */
         /*
          * OURS: `TIM_GAMEDIR` points the guest's file world somewhere other
-         * than `even-more-incredible-machine`.
+         * than the game's own directory - `game/` beside the binary, else here.
          *
          * The comparison tools need this. They compare *graphics*, and the
          * sound device ought not to matter to them - but it does, because a

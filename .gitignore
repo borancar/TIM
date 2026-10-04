@@ -25,7 +25,7 @@ reconstruct/v*/libtim.so
 # need; do not expect them to survive a pin move.
 snaps/
 
-# **The game itself.** `incredible-machine/` is the original 1993 release -
+# **The game itself.** Each tree's `game/` is the original release -
 # TIM.EXE, the RESOURCE archives and the shipped .TIM machines - and it is
 # Dynamix/Sierra's, not ours. It was committed in the very first commit and
 # rode along in all 645 that followed until `git filter-branch` took it out of
@@ -34,8 +34,7 @@ snaps/
 # The reconstruction *needs* these files on disk: the emulator loads TIM.EXE
 # and every tool in `tools/` reads the archives through `tools/tim.py`. So they
 # stay in the working tree and are never tracked. Supply your own copy.
-incredible-machine/
-even-more-incredible-machine/
+reconstruct/v*/game/
 setup_the_even_more_incredible_machine_*.exe
 
 # Snapshots of a running game hold the whole guest memory image - the

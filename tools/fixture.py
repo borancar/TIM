@@ -1,6 +1,6 @@
 """Build a game directory with the things the real one happens not to have.
 
-Several routines are unreachable against `incredible-machine/` for reasons that
+Several routines are unreachable against the game's own directory for reasons that
 have nothing to do with the port: the folder has no subdirectory, so the
 picker's navigation is never called, and it has `CODES.TXT` rather than
 `PASSWORD.TXT`, so the password lookup always fails its open and the score-code
